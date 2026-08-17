@@ -4,24 +4,32 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
+return new class extends Migration {
     public function up(): void
     {
-        Schema::create('sinala_core_tables', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+        Schema::create('plans', function (Blueprint $t) { $t->id(); $t->string('name'); $t->string('slug')->unique(); $t->unsignedInteger('price_mzn')->default(0); $t->unsignedInteger('event_limit'); $t->unsignedInteger('user_limit'); $t->unsignedBigInteger('storage_mb'); $t->boolean('monthly_event_limit')->default(false); $t->boolean('active')->default(true); $t->json('features')->nullable(); $t->timestamps(); });
+        Schema::create('organizations', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->string('name'); $t->string('slug')->unique(); $t->string('logo_path')->nullable(); $t->string('nuit')->nullable(); $t->string('address')->nullable(); $t->string('province')->nullable(); $t->string('district')->nullable(); $t->string('country')->default('Moçambique'); $t->string('responsible_name'); $t->string('email'); $t->string('phone')->nullable(); $t->json('report_settings')->nullable(); $t->timestamps(); $t->softDeletes(); });
+        Schema::table('users', function (Blueprint $t) { $t->foreignId('organization_id')->nullable()->after('id')->constrained()->nullOnDelete(); $t->string('phone')->nullable(); $t->boolean('is_super_admin')->default(false); $t->softDeletes(); $t->index(['organization_id','email']); });
+        Schema::create('subscriptions', function (Blueprint $t) { $t->id(); $t->foreignId('organization_id')->constrained()->cascadeOnDelete(); $t->foreignId('plan_id')->constrained(); $t->string('status')->default('trial'); $t->date('starts_at'); $t->date('expires_at')->nullable(); $t->unsignedInteger('amount_mzn')->default(0); $t->string('payment_method')->nullable(); $t->string('transaction_reference')->nullable(); $t->timestamps(); $t->index(['organization_id','status']); });
+        Schema::create('projects', function (Blueprint $t) { $t->id(); $t->foreignId('organization_id')->constrained()->cascadeOnDelete(); $t->string('name'); $t->text('description')->nullable(); $t->timestamps(); $t->softDeletes(); });
+        Schema::create('donors', function (Blueprint $t) { $t->id(); $t->foreignId('organization_id')->constrained()->cascadeOnDelete(); $t->string('name'); $t->string('contact')->nullable(); $t->timestamps(); $t->softDeletes(); });
+        Schema::create('events', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('organization_id')->constrained()->cascadeOnDelete(); $t->foreignId('project_id')->nullable()->constrained()->nullOnDelete(); $t->foreignId('donor_id')->nullable()->constrained()->nullOnDelete(); $t->string('name'); $t->string('type'); $t->string('status')->default('draft'); $t->string('location'); $t->string('province')->nullable(); $t->string('district')->nullable(); $t->date('starts_on'); $t->date('ends_on'); $t->time('starts_at')->nullable(); $t->time('ends_at')->nullable(); $t->string('facilitator')->nullable(); $t->string('responsible_name')->nullable(); $t->string('contact')->nullable(); $t->unsignedInteger('expected_participants')->default(0); $t->text('description')->nullable(); $t->text('notes')->nullable(); $t->boolean('requires_check_in')->default(true); $t->boolean('requires_check_out')->default(false); $t->string('public_code')->unique(); $t->boolean('public_registration_enabled')->default(false); $t->timestamps(); $t->softDeletes(); $t->index(['organization_id','status','starts_on']); });
+        Schema::create('event_days', function (Blueprint $t) { $t->id(); $t->foreignId('event_id')->constrained()->cascadeOnDelete(); $t->date('date'); $t->timestamps(); $t->unique(['event_id','date']); });
+        Schema::create('participants', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('organization_id')->constrained()->cascadeOnDelete(); $t->string('full_name'); $t->string('sex')->nullable(); $t->date('birth_date')->nullable(); $t->string('company')->nullable(); $t->string('position')->nullable(); $t->string('province')->nullable(); $t->string('district')->nullable(); $t->string('phone')->nullable(); $t->string('email')->nullable(); $t->string('document_number')->nullable(); $t->string('document_type')->nullable(); $t->text('notes')->nullable(); $t->timestamps(); $t->softDeletes(); $t->index(['organization_id','full_name']); });
+        Schema::create('event_participants', function (Blueprint $t) { $t->id(); $t->foreignId('event_id')->constrained()->cascadeOnDelete(); $t->foreignId('participant_id')->constrained()->cascadeOnDelete(); $t->string('status')->default('pending'); $t->timestamps(); $t->unique(['event_id','participant_id']); });
+        Schema::create('attendance_records', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('event_id')->constrained()->cascadeOnDelete(); $t->foreignId('event_day_id')->constrained()->cascadeOnDelete(); $t->foreignId('participant_id')->constrained()->cascadeOnDelete(); $t->string('type'); $t->string('status')->default('present'); $t->timestamp('recorded_at'); $t->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete(); $t->string('ip_address',45)->nullable(); $t->timestamps(); $t->unique(['event_day_id','participant_id','type']); });
+        Schema::create('attendance_signatures', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('attendance_record_id')->constrained()->cascadeOnDelete(); $t->string('path'); $t->string('sha256',64); $t->string('mime_type')->default('image/png'); $t->timestamps(); });
+        Schema::create('payment_lists', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('event_id')->constrained()->cascadeOnDelete(); $t->string('name'); $t->string('type'); $t->text('description')->nullable(); $t->decimal('default_amount',12,2); $t->string('currency',3)->default('MZN'); $t->date('payment_date'); $t->string('cost_center')->nullable(); $t->timestamps(); $t->softDeletes(); });
+        Schema::create('participant_payments', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('payment_list_id')->constrained()->cascadeOnDelete(); $t->foreignId('participant_id')->constrained()->cascadeOnDelete(); $t->decimal('amount',12,2); $t->string('status')->default('pending'); $t->timestamp('paid_at')->nullable(); $t->foreignId('confirmed_by')->nullable()->constrained('users')->nullOnDelete(); $t->timestamps(); $t->unique(['payment_list_id','participant_id']); });
+        Schema::create('payment_signatures', function (Blueprint $t) { $t->id(); $t->uuid('uuid')->unique(); $t->foreignId('participant_payment_id')->constrained()->cascadeOnDelete(); $t->string('path'); $t->string('sha256',64); $t->string('ip_address',45)->nullable(); $t->timestamps(); });
+        Schema::create('event_responsible_signatures', function (Blueprint $t) { $t->id(); $t->foreignId('event_id')->constrained()->cascadeOnDelete(); $t->string('responsible_name'); $t->string('role'); $t->string('path'); $t->string('sha256',64); $t->timestamps(); });
+        Schema::create('activity_logs', function (Blueprint $t) { $t->id(); $t->foreignId('organization_id')->nullable()->constrained()->nullOnDelete(); $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete(); $t->string('action'); $t->nullableMorphs('subject'); $t->json('old_values')->nullable(); $t->json('new_values')->nullable(); $t->string('ip_address',45)->nullable(); $t->timestamps(); $t->index(['organization_id','created_at']); });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('sinala_core_tables');
+        foreach (['activity_logs','event_responsible_signatures','payment_signatures','participant_payments','payment_lists','attendance_signatures','attendance_records','event_participants','participants','event_days','events','donors','projects','subscriptions'] as $table) Schema::dropIfExists($table);
+        Schema::table('users', function (Blueprint $t) { $t->dropForeign(['organization_id']); $t->dropColumn(['organization_id','phone','is_super_admin','deleted_at']); });
+        Schema::dropIfExists('organizations'); Schema::dropIfExists('plans');
     }
 };

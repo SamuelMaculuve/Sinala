@@ -1,0 +1,6 @@
+@extends('layouts.app',['title'=>'Presenças — Sinala'])
+@section('content')
+<div><p class="eyebrow">PRESENÇAS</p><h1 class="mt-2 text-4xl font-bold">Registos de presença</h1><p class="mt-2 text-stone-500">Histórico de assinaturas recolhidas nos eventos.</p></div>
+<section class="mt-8 overflow-hidden rounded-3xl bg-white"><div class="overflow-x-auto"><table class="w-full min-w-[820px] text-left"><thead><tr><th>Participante</th><th>Evento</th><th>Tipo</th><th>Data e hora</th><th>Assinatura</th></tr></thead><tbody>@forelse($records as $record)<tr><td class="font-semibold">{{ $record->participant->full_name }}</td><td><a class="hover:text-orange-600" href="{{ route('events.show',$record->event) }}">{{ $record->event->name }}</a></td><td>{{ $record->type === 'check_out' ? 'Saída' : 'Entrada' }}</td><td>{{ $record->recorded_at->format('d/m/Y H:i') }}</td><td><span class="{{ $record->signature ? 'badge-success' : 'status-pill status-draft' }}">{{ $record->signature ? 'Recolhida' : 'Pendente' }}</span></td></tr>@empty<tr><td colspan="5" class="py-12 text-center text-stone-400">Ainda não existem presenças registadas.</td></tr>@endforelse</tbody></table></div></section>
+<div class="mt-6">{{ $records->links() }}</div>
+@endsection

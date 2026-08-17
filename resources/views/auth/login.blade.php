@@ -1,0 +1,4 @@
+@extends('layouts.app',['title'=>'Entrar — Sinala'])
+@section('content')
+<div class="auth-shell"><div class="auth-card"><a href="/" aria-label="Sinala — página inicial"><x-brand-logo /></a><h1 class="mt-10 text-4xl font-bold">Bem-vindo de volta</h1><p class="mt-2 text-stone-500">Entre para gerir os seus eventos.</p><form method="post" class="mt-8 space-y-5">@csrf<label class="field">E-mail<input name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="email"></label><label class="field">Palavra-passe<input name="password" type="password" required autocomplete="current-password"></label><label class="flex gap-2"><input type="checkbox" name="remember"> Manter sessão</label><button class="btn-primary w-full">Entrar</button></form><p class="mt-6 text-center">Ainda não tem conta? <a class="text-orange-600" href="{{ route('register') }}">Criar organização</a></p></div></div>
+@endsection

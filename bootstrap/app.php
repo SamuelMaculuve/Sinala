@@ -11,7 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias(['role'=>\Spatie\Permission\Middleware\RoleMiddleware::class,'permission'=>\Spatie\Permission\Middleware\PermissionMiddleware::class,'super.admin'=>\App\Http\Middleware\EnsureSuperAdmin::class,'organization'=>\App\Http\Middleware\EnsureOrganization::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
