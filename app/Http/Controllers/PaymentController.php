@@ -13,12 +13,23 @@ use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
-    public function showList(PaymentList $paymentList)
+    public function showList(Request $request, PaymentList $paymentList)
     {
-        $paymentList->load(['event.organization', 'payments.participant', 'payments.signature']);
+        $paymentList->load('event.organization');
         $this->authorize('view', $paymentList->event);
+        $query = $paymentList->payments()->with(['participant', 'signature']);
+        $query->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')));
+        $query->when($request->filled('search'), fn ($q) => $q->whereHas('participant', fn ($participant) => $participant->where('full_name', 'like', '%'.$request->string('search')->trim().'%')));
+        $perPage = in_array($request->integer('per_page'), [10, 20, 50, 100], true) ? $request->integer('per_page') : 20;
+        $payments = $query->orderBy('id')->paginate($perPage)->withQueryString();
+        $stats = [
+            'count' => $paymentList->payments()->count(),
+            'confirmed' => $paymentList->payments()->where('status', 'paid')->count(),
+            'expected' => $paymentList->payments()->sum('amount'),
+            'paid' => $paymentList->payments()->where('status', 'paid')->sum('amount'),
+        ];
 
-        return view('payments.show', compact('paymentList'));
+        return view('payments.show', compact('paymentList', 'payments', 'stats'));
     }
 
     public function storeList(Request $request, Event $event)

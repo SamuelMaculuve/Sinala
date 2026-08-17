@@ -113,6 +113,24 @@ class SaaSCoreTest extends TestCase
         $this->get(route('organization.reports'))->assertOk()->assertSee('Resumo dos eventos');
     }
 
+    public function test_participants_and_payments_can_be_filtered_by_event_server_side(): void
+    {
+        [$org, $user] = $this->organization();
+        $eventA = $this->event($org, 'Evento Alfa');
+        $eventB = $this->event($org, 'Evento Beta');
+        $participantA = Participant::create(['uuid'=>Str::uuid(),'organization_id'=>$org->id,'full_name'=>'Pessoa Alfa']);
+        $participantB = Participant::create(['uuid'=>Str::uuid(),'organization_id'=>$org->id,'full_name'=>'Pessoa Beta']);
+        $eventA->participants()->attach($participantA->id, ['status'=>'pending']);
+        $eventB->participants()->attach($participantB->id, ['status'=>'pending']);
+        $listA = PaymentList::create(['uuid'=>Str::uuid(),'event_id'=>$eventA->id,'name'=>'Lista Alfa','type'=>'Transporte','default_amount'=>100,'currency'=>'MZN','payment_date'=>today()]);
+        $listB = PaymentList::create(['uuid'=>Str::uuid(),'event_id'=>$eventB->id,'name'=>'Lista Beta','type'=>'Transporte','default_amount'=>100,'currency'=>'MZN','payment_date'=>today()]);
+        ParticipantPayment::create(['uuid'=>Str::uuid(),'payment_list_id'=>$listA->id,'participant_id'=>$participantA->id,'amount'=>100]);
+        ParticipantPayment::create(['uuid'=>Str::uuid(),'payment_list_id'=>$listB->id,'participant_id'=>$participantB->id,'amount'=>100]);
+
+        $this->actingAs($user)->get(route('organization.participants', ['event'=>$eventA->id, 'per_page'=>10]))->assertOk()->assertSee('Pessoa Alfa')->assertDontSee('Pessoa Beta');
+        $this->get(route('organization.payments', ['event'=>$eventA->id, 'per_page'=>10]))->assertOk()->assertSee('Lista Alfa')->assertDontSee('Lista Beta');
+    }
+
     public function test_event_documents_can_be_exported_as_pdf(): void
     {
         [$org, $user] = $this->organization();

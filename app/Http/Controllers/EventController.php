@@ -39,7 +39,10 @@ class EventController extends Controller {
      */
     public function show(Event $event)
     {
-        $this->authorize('view',$event); $event->load(['days','participants','attendanceRecords.signature','paymentLists.payments']); return view('events.show',compact('event'));
+        $this->authorize('view',$event);
+        $event->load(['days','paymentLists.payments'])->loadCount('participants');
+        $participants=$event->participants()->orderBy('full_name')->paginate(20,['participants.*'],'participants_page')->withQueryString();
+        return view('events.show',compact('event','participants'));
     }
 
     /**
