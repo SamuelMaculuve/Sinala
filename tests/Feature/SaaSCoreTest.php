@@ -122,9 +122,47 @@ class SaaSCoreTest extends TestCase
         ]);
         $this->assertSame('present', $event->participants()->whereKey($participant->id)->firstOrFail()->pivot->status);
 
-        $this->post(route('attendance.store', $event), $payload)->assertStatus(422);
+        $this->post(route('attendance.store', $event), $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('attendance');
 
         $this->assertSame(1, AttendanceRecord::count());
+        $this->assertSame('present', $event->participants()->whereKey($participant->id)->firstOrFail()->pivot->status);
+    }
+
+    public function test_duplicate_attendance_can_be_updated_when_user_confirms_replacement(): void
+    {
+        [$org, $user] = $this->organization();
+        $event = $this->event($org);
+        $day = $event->days()->create(['date' => today()]);
+        $participant = Participant::create(['uuid'=>Str::uuid(),'organization_id'=>$org->id,'full_name'=>'Pessoa Actualizada']);
+        $event->participants()->attach($participant->id, ['status' => 'pending']);
+
+        $payload = [
+            'participant_id' => $participant->id,
+            'event_day_id' => $day->id,
+            'type' => 'check_in',
+            'signature' => 'data:image/png;base64,'.base64_encode(str_repeat('a', 101)),
+        ];
+
+        $this->actingAs($user)
+            ->post(route('attendance.store', $event), $payload)
+            ->assertSessionHas('success');
+
+        $record = AttendanceRecord::firstOrFail();
+        $firstRecordedAt = $record->recorded_at;
+
+        $this->post(route('attendance.store', $event), $payload)
+            ->assertRedirect()
+            ->assertSessionHasErrors('attendance');
+
+        $this->post(route('attendance.store', $event), $payload + ['replace_existing' => '1'])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Presença actualizada com sucesso.');
+
+        $this->assertSame(1, AttendanceRecord::count());
+        $this->assertDatabaseHas('attendance_signatures', ['attendance_record_id' => $record->id]);
+        $this->assertTrue($record->fresh()->recorded_at->greaterThanOrEqualTo($firstRecordedAt));
         $this->assertSame('present', $event->participants()->whereKey($participant->id)->firstOrFail()->pivot->status);
     }
 
