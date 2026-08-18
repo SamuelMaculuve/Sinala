@@ -42,11 +42,17 @@ class EventController extends Controller {
         $this->authorize('view',$event);
         $event->load(['days','paymentLists.payments'])->loadCount('participants');
         $participants=$event->participants()->orderBy('full_name')->paginate(20,['participants.*'],'participants_page')->withQueryString();
+        $participantAttendances = $event->attendanceRecords()
+            ->whereIn('participant_id', $participants->getCollection()->pluck('id'))
+            ->whereHas('signature')
+            ->latest('recorded_at')
+            ->get()
+            ->groupBy('participant_id');
         $syncCandidatesCount = $event->participants()
             ->wherePivot('status', 'pending')
             ->whereIn('participants.id', $event->attendanceRecords()->select('participant_id')->distinct())
             ->count();
-        return view('events.show',compact('event','participants','syncCandidatesCount'));
+        return view('events.show',compact('event','participants','participantAttendances','syncCandidatesCount'));
     }
 
     public function syncAttendanceStatuses(Event $event)
