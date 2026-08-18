@@ -21,7 +21,7 @@ Route::middleware('auth')->group(function(){
   Route::put('/settings/documents',[DocumentSettingsController::class,'update'])->name('organization.documents.update');
   Route::get('/settings/documents/logo',[DocumentSettingsController::class,'logo'])->name('organization.documents.logo');
   Route::get('/settings/documents/header',[DocumentSettingsController::class,'headerBanner'])->name('organization.documents.header');
-  Route::resource('events',EventController::class); Route::post('/events/{event}/participants',[ParticipantController::class,'store'])->name('participants.store'); Route::delete('/events/{event}/participants/{participant}',[ParticipantController::class,'destroy'])->name('participants.destroy');
+  Route::resource('events',EventController::class); Route::post('/events/{event}/participants',[ParticipantController::class,'store'])->name('participants.store'); Route::delete('/events/{event}/participants/{participant}',[ParticipantController::class,'destroy'])->name('participants.destroy'); Route::post('/events/{event}/sync-attendance-statuses',[EventController::class,'syncAttendanceStatuses'])->name('events.sync-attendance-statuses');
   Route::get('/events/{event}/kiosk',[AttendanceController::class,'kiosk'])->name('attendance.kiosk'); Route::post('/events/{event}/attendance',[AttendanceController::class,'store'])->name('attendance.store');
   Route::get('/events/{event}/exports/attendance.pdf',[ExportController::class,'attendance'])->name('exports.attendance');
   Route::get('/payment-lists/{paymentList}/export.pdf',[ExportController::class,'payment'])->name('exports.payment');

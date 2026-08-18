@@ -45,6 +45,29 @@ class EventController extends Controller {
         return view('events.show',compact('event','participants'));
     }
 
+    public function syncAttendanceStatuses(Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $participantIds = $event->attendanceRecords()
+            ->select('participant_id')
+            ->distinct()
+            ->pluck('participant_id');
+
+        $updated = 0;
+        DB::transaction(function () use ($event, $participantIds, &$updated) {
+            foreach ($participantIds as $participantId) {
+                $updated += $event->participants()
+                    ->wherePivot('status', '!=', 'present')
+                    ->updateExistingPivot($participantId, ['status' => 'present']);
+            }
+        });
+
+        return back()->with('success', $updated > 0
+            ? "Estados sincronizados com sucesso para {$updated} participante(s)."
+            : 'Nenhum estado precisava de correcção.');
+    }
+
     /**
      * Show the form for editing the specified resource.
      */

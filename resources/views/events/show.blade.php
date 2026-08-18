@@ -2,7 +2,7 @@
 @section('content')
 <div class="flex flex-wrap items-start justify-between gap-5">
   <div><span class="badge-success">{{ ['draft'=>'Rascunho','scheduled'=>'Agendado','ongoing'=>'Em curso','completed'=>'Concluído','cancelled'=>'Cancelado'][$event->status] ?? $event->status }}</span><h1 class="mt-3 text-4xl font-bold">{{ $event->name }}</h1><p class="mt-2 text-stone-500">{{ $event->location }} · {{ $event->starts_on->format('d/m/Y') }} — {{ $event->ends_on->format('d/m/Y') }}</p></div>
-  <div class="flex flex-wrap gap-3"><a class="btn-secondary" href="{{ route('exports.attendance',$event) }}">↓ Exportar presença PDF</a><a class="btn-primary" href="{{ route('attendance.kiosk',$event) }}">Modo de assinatura</a></div>
+  <div class="flex flex-wrap gap-3"><form method="post" action="{{ route('events.sync-attendance-statuses',$event) }}">@csrf<button class="btn-secondary">Corrigir estados</button></form><a class="btn-secondary" href="{{ route('exports.attendance',$event) }}">↓ Exportar presença PDF</a><a class="btn-primary" href="{{ route('attendance.kiosk',$event) }}">Modo de assinatura</a></div>
 </div>
 
 <div class="mt-8 grid gap-6 xl:grid-cols-[1fr_360px]">
