@@ -42,7 +42,40 @@ class EventController extends Controller {
         $this->authorize('view',$event);
         $event->load(['days','paymentLists.payments'])->loadCount('participants');
         $participants=$event->participants()->orderBy('full_name')->paginate(20,['participants.*'],'participants_page')->withQueryString();
-        return view('events.show',compact('event','participants'));
+        $participantAttendances = $event->attendanceRecords()
+            ->whereIn('participant_id', $participants->getCollection()->pluck('id'))
+            ->whereHas('signature')
+            ->latest('recorded_at')
+            ->get()
+            ->groupBy('participant_id');
+        $syncCandidatesCount = $event->participants()
+            ->wherePivot('status', 'pending')
+            ->whereIn('participants.id', $event->attendanceRecords()->select('participant_id')->distinct())
+            ->count();
+        return view('events.show',compact('event','participants','participantAttendances','syncCandidatesCount'));
+    }
+
+    public function syncAttendanceStatuses(Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $participantIds = $event->attendanceRecords()
+            ->select('participant_id')
+            ->distinct()
+            ->pluck('participant_id');
+
+        $updated = 0;
+        DB::transaction(function () use ($event, $participantIds, &$updated) {
+            foreach ($participantIds as $participantId) {
+                $updated += $event->participants()
+                    ->wherePivot('status', '!=', 'present')
+                    ->updateExistingPivot($participantId, ['status' => 'present']);
+            }
+        });
+
+        return back()->with('success', $updated > 0
+            ? "Estados sincronizados com sucesso para {$updated} participante(s)."
+            : 'Nenhum estado precisava de correcção.');
     }
 
     /**
