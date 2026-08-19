@@ -9,5 +9,5 @@
 <tr class="total"><td colspan="4" class="money">TOTAL PAGO</td><td class="money">{{ number_format($paymentList->payments->where('status','paid')->sum('amount'),2,',','.') }} {{ $paymentList->currency }}</td><td colspan="3"></td></tr></tbody></table>
 <table class="signers"><tr>@forelse($managers as $manager)<td><div class="line"><strong>{{ $manager->name }}</strong><br>{{ $manager->roles->pluck('name')->first() }}<br><span class="muted">Assinatura do responsável da organização</span></div></td>@empty<td><div class="line">Responsável da organização</div></td>@endforelse</tr></table>
 @if(!empty($settings['footer_note']))<p class="muted" style="margin-top:24px;text-align:center">{{ $settings['footer_note'] }}</p>@endif
-<div class="platform-footer muted">Documento gerado pela plataforma <img src="{{ public_path('brand/sinala-logo-transparent.png') }}"></div>
+<div class="platform-footer muted">Documento gerado pela plataforma <a href="https://sinala.mazedeve.com">Sinala</a> (https://sinala.mazedeve.com)</div>
 </body></html>
