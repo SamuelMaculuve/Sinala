@@ -50,7 +50,7 @@ class EventController extends Controller {
      */
     public function edit(Event $event)
     {
-        $this->authorize('update',$event); return view('events.edit',compact('event'));
+        $this->authorize('editEventDetails',$event); return view('events.edit',compact('event'));
     }
 
     /**
@@ -58,7 +58,9 @@ class EventController extends Controller {
      */
     public function update(Request $request, Event $event)
     {
-        $this->authorize('update',$event); $data=$request->validate(['name'=>'required|max:180','status'=>'required|in:draft,scheduled,ongoing,completed,cancelled','location'=>'required|max:180','starts_on'=>'required|date','ends_on'=>'required|date|after_or_equal:starts_on']); $event->update($data); return redirect()->route('events.show',$event)->with('success','Evento actualizado.');
+        $this->authorize('editEventDetails',$event); $data=$request->validate(['name'=>'required|max:180','type'=>'required|in:training,workshop,seminar,conference,meeting,community,capacity,other','status'=>'required|in:draft,scheduled,ongoing,completed,cancelled','location'=>'required|max:180','province'=>'nullable|max:100','district'=>'nullable|max:100','starts_on'=>'required|date','ends_on'=>'required|date|after_or_equal:starts_on','starts_at'=>'nullable','ends_at'=>'nullable','facilitator'=>'nullable|max:150','responsible_name'=>'nullable|max:150','contact'=>'nullable|max:50','expected_participants'=>'nullable|integer|min:0','description'=>'nullable|max:3000','requires_check_out'=>'nullable|boolean']);
+        DB::transaction(function()use($event,$data){$event->update($data); $existing=$event->days()->pluck('date')->map(fn($d)=>$d->format('Y-m-d'))->all(); foreach(CarbonPeriod::create($data['starts_on'],$data['ends_on']) as $date)if(!in_array($date->format('Y-m-d'),$existing,true))$event->days()->create(['date'=>$date]);});
+        return redirect()->route('events.show',$event)->with('success','Evento actualizado.');
     }
 
     /**
@@ -67,5 +69,13 @@ class EventController extends Controller {
     public function destroy(Event $event)
     {
         $this->authorize('delete',$event); $event->delete(); return redirect()->route('events.index')->with('success','Evento removido.');
+    }
+
+    /**
+     * Close the event, permanently blocking further changes.
+     */
+    public function close(Request $request, Event $event)
+    {
+        $this->authorize('close',$event); $event->update(['closed_at'=>now(),'closed_by'=>$request->user()->id]); return redirect()->route('events.show',$event)->with('success','Evento fechado. Já não é possível alterar dados.');
     }
 }

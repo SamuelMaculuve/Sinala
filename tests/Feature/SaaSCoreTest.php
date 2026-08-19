@@ -80,6 +80,7 @@ class SaaSCoreTest extends TestCase
 
         $this->actingAs($user)->post(route('payments.lists.store', $event), [
             'name'=>'Subsídio de transporte','type'=>'Transporte','default_amount'=>1500,'currency'=>'MZN','payment_date'=>today()->format('Y-m-d'),
+            'participant_ids'=>[$eligible->id],
         ])->assertRedirect();
 
         $list = PaymentList::firstOrFail();

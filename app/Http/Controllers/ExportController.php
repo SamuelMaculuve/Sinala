@@ -39,6 +39,17 @@ class ExportController extends Controller
             ->download('lista-recebimento-'.$paymentList->payment_date->format('Y-m-d').'.pdf');
     }
 
+    public function payments(Event $event)
+    {
+        $this->authorize('view', $event);
+        $event->load(['organization.users.roles', 'paymentLists.payments.participant', 'paymentLists.payments.signature']);
+        [$settings, $logoData, $headerBannerData, $managers] = $this->documentOptions($event);
+
+        return Pdf::loadView('exports.payments-all', compact('event', 'settings', 'logoData', 'headerBannerData', 'managers'))
+            ->setPaper('a4', 'landscape')
+            ->download('listas-pagamento-'.$event->starts_on->format('Y-m-d').'.pdf');
+    }
+
     private function documentOptions(Event $event): array
     {
         $organization = $event->organization;

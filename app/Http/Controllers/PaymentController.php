@@ -32,24 +32,44 @@ class PaymentController extends Controller
         return view('payments.show', compact('paymentList', 'payments', 'stats'));
     }
 
+    public function selectEvent(Request $request)
+    {
+        $organization = $request->user()->organization;
+        $events = $organization->events()->withCount('participants')->orderByDesc('starts_on')->paginate(12);
+
+        return view('payments.select-event', compact('events'));
+    }
+
+    public function create(Request $request, Event $event)
+    {
+        $this->authorize('managePayments', $event);
+        $participants = $event->participants()->orderBy('full_name')->get();
+        $presentIds = $event->attendanceRecords()->where('type', 'check_in')->pluck('participant_id')->unique();
+
+        return view('payments.create', compact('event', 'participants', 'presentIds'));
+    }
+
     public function storeList(Request $request, Event $event)
     {
         $this->authorize('managePayments', $event);
-        $data = $request->validate(['name'=>'required|max:180','type'=>'required|max:100','description'=>'nullable|max:1000','default_amount'=>'required|numeric|min:0','currency'=>'required|in:MZN,USD,EUR,ZAR','payment_date'=>'required|date','cost_center'=>'nullable|max:100']);
+        $data = $request->validate(['name'=>'required|max:180','type'=>'required|max:100','description'=>'nullable|max:1000','default_amount'=>'required|numeric|min:0','currency'=>'required|in:MZN,USD,EUR,ZAR','payment_date'=>'required|date','cost_center'=>'nullable|max:100','participant_ids'=>'required|array|min:1','participant_ids.*'=>'integer']);
 
-        $list = DB::transaction(function () use ($event, $data) {
-            $list = $event->paymentLists()->create($data + ['uuid' => (string) Str::uuid()]);
-            // A lista de presença do evento é a fonte única de participantes elegíveis.
-            $event->participants()->each(fn ($participant) => $list->payments()->create([
+        // Apenas participantes efectivamente marcados como presentes (seleccionados nesta lista) são elegíveis.
+        $participantIds = $event->participants()->whereIn('participants.id', $data['participant_ids'])->pluck('participants.id')->unique();
+        abort_if($participantIds->count() !== collect($data['participant_ids'])->unique()->count(), 422, 'Um ou mais participantes não pertencem a este evento.');
+
+        $list = DB::transaction(function () use ($event, $data, $participantIds) {
+            $list = $event->paymentLists()->create(collect($data)->except('participant_ids')->toArray() + ['uuid' => (string) Str::uuid()]);
+            $participantIds->each(fn ($id) => $list->payments()->create([
                 'uuid' => (string) Str::uuid(),
-                'participant_id' => $participant->id,
+                'participant_id' => $id,
                 'amount' => $data['default_amount'],
                 'status' => 'pending',
             ]));
             return $list;
         });
 
-        return redirect()->route('payments.lists.show', $list)->with('success', 'Lista criada com os participantes da lista de presença. Cada pagamento requer assinatura.');
+        return redirect()->route('payments.lists.show', $list)->with('success', 'Lista criada com os participantes marcados como presentes. Cada pagamento requer assinatura.');
     }
 
     public function confirm(Request $request, ParticipantPayment $payment, SignatureService $signatures)

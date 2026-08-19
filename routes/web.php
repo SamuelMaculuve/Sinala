@@ -22,10 +22,14 @@ Route::middleware('auth')->group(function(){
   Route::get('/settings/documents/logo',[DocumentSettingsController::class,'logo'])->name('organization.documents.logo');
   Route::get('/settings/documents/header',[DocumentSettingsController::class,'headerBanner'])->name('organization.documents.header');
   Route::resource('events',EventController::class); Route::post('/events/{event}/participants',[ParticipantController::class,'store'])->name('participants.store'); Route::delete('/events/{event}/participants/{participant}',[ParticipantController::class,'destroy'])->name('participants.destroy');
+  Route::post('/events/{event}/close',[EventController::class,'close'])->name('events.close');
   Route::get('/events/{event}/kiosk',[AttendanceController::class,'kiosk'])->name('attendance.kiosk'); Route::post('/events/{event}/attendance',[AttendanceController::class,'store'])->name('attendance.store');
   Route::get('/events/{event}/exports/attendance.pdf',[ExportController::class,'attendance'])->name('exports.attendance');
+  Route::get('/events/{event}/exports/payments.pdf',[ExportController::class,'payments'])->name('exports.payments');
   Route::get('/payment-lists/{paymentList}/export.pdf',[ExportController::class,'payment'])->name('exports.payment');
   Route::get('/payment-lists/{paymentList}',[PaymentController::class,'showList'])->name('payments.lists.show');
+  Route::get('/payments/select-event',[PaymentController::class,'selectEvent'])->name('payments.select-event');
+  Route::get('/events/{event}/payments/create',[PaymentController::class,'create'])->name('payments.lists.create');
   Route::post('/events/{event}/payment-lists',[PaymentController::class,'storeList'])->name('payments.lists.store'); Route::post('/payments/{payment}/confirm',[PaymentController::class,'confirm'])->name('payments.confirm');});
 });
 Route::middleware(['auth','super.admin'])->prefix('admin')->name('admin.')->group(function(){Route::resource('plans',PlanController::class);});

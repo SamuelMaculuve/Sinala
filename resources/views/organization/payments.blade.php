@@ -1,6 +1,6 @@
 @extends('layouts.app',['title'=>'Pagamentos — Sinala'])
 @section('content')
-<div><p class="eyebrow">PAGAMENTOS</p><h1 class="mt-2 text-4xl font-bold">Pagamentos e subsídios</h1><p class="mt-2 text-stone-500">Valores e confirmações, consultados com processamento no servidor.</p></div>
+<div class="flex flex-wrap items-start justify-between gap-4"><div><p class="eyebrow">PAGAMENTOS</p><h1 class="mt-2 text-4xl font-bold">Pagamentos e subsídios</h1><p class="mt-2 text-stone-500">Valores e confirmações, consultados com processamento no servidor.</p></div><a class="btn-primary" href="{{ route('payments.select-event') }}">+ Nova lista de pagamento</a></div>
 <form method="get" class="mt-7 grid gap-3 rounded-2xl border bg-white p-4 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_160px_120px_auto]">
   <label class="field">Pesquisar<input name="search" value="{{ request('search') }}" placeholder="Nome do participante"></label>
   <label class="field">Evento<select name="event"><option value="">Todos os eventos</option>@foreach($events as $event)<option value="{{ $event->id }}" @selected((string)$event->id===request('event'))>{{ $event->name }}</option>@endforeach</select></label>
