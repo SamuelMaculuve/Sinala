@@ -33,8 +33,9 @@ class ExportController extends Controller
         $event = $paymentList->event;
         $this->authorize('view', $event);
         [$settings, $logoData, $headerBannerData, $managers] = $this->documentOptions($event);
+        $attendanceSignatures = $this->attendanceSignatures($event);
 
-        return Pdf::loadView('exports.payment', compact('event', 'paymentList', 'settings', 'logoData', 'headerBannerData', 'managers'))
+        return Pdf::loadView('exports.payment', compact('event', 'paymentList', 'settings', 'logoData', 'headerBannerData', 'managers', 'attendanceSignatures'))
             ->setPaper('a4', 'landscape')
             ->download('lista-recebimento-'.$paymentList->payment_date->format('Y-m-d').'.pdf');
     }
@@ -44,10 +45,27 @@ class ExportController extends Controller
         $this->authorize('view', $event);
         $event->load(['organization.users.roles', 'paymentLists.payments.participant', 'paymentLists.payments.signature']);
         [$settings, $logoData, $headerBannerData, $managers] = $this->documentOptions($event);
+        $attendanceSignatures = $this->attendanceSignatures($event);
 
-        return Pdf::loadView('exports.payments-all', compact('event', 'settings', 'logoData', 'headerBannerData', 'managers'))
+        return Pdf::loadView('exports.payments-all', compact('event', 'settings', 'logoData', 'headerBannerData', 'managers', 'attendanceSignatures'))
             ->setPaper('a4', 'landscape')
             ->download('listas-pagamento-'.$event->starts_on->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Most recent check-in signature per participant, so payment lists can reuse the
+     * signature already collected on the attendance list instead of asking for a new one.
+     */
+    private function attendanceSignatures(Event $event)
+    {
+        return $event->attendanceRecords()
+            ->where('type', 'check_in')
+            ->whereHas('signature')
+            ->with('signature')
+            ->latest('recorded_at')
+            ->get()
+            ->groupBy('participant_id')
+            ->map(fn ($records) => $records->first()->signature);
     }
 
     private function documentOptions(Event $event): array
