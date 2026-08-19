@@ -6,6 +6,6 @@ class Event extends Model { use SoftDeletes; protected $guarded=[]; protected fu
     public function isClosed(): bool { return !is_null($this->closed_at); }
     public function endsAtMoment(): \Carbon\Carbon { return $this->ends_at ? \Carbon\Carbon::parse($this->ends_on->format('Y-m-d').' '.$this->ends_at) : $this->ends_on->copy()->endOfDay(); }
     public function hasEnded(): bool { return now()->greaterThan($this->endsAtMoment()); }
-    public function canBeEdited(): bool { return !$this->isClosed() && !$this->hasEnded(); }
+    public function canBeEdited(): bool { return !$this->isClosed(); }
     public function canBeClosed(): bool { return !$this->isClosed() && $this->hasEnded(); }
 }
