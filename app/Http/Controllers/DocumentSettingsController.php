@@ -72,6 +72,6 @@ class DocumentSettingsController extends Controller
 
     private function authorizeSettings(): void
     {
-        abort_unless(request()->user()->hasRole('Administrador da Organização'), 403);
+        abort_unless(request()->user()->hasAnyRole(['Administrador da Organização', 'Coordenador Geral']), 403);
     }
 }

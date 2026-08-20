@@ -16,7 +16,7 @@ class SinalaSeeder extends Seeder
      */
     public function run(): void
     {
-        foreach(['Super Administrador','Administrador da Organização','Gestor de Eventos','Operador','Visualizador/Auditor'] as $role) Role::firstOrCreate(['name'=>$role,'guard_name'=>'web']);
+        foreach(['Super Administrador','Administrador da Organização','Gestor de Eventos','Operador','Visualizador/Auditor','Coordenador Geral','Coordenadora de campo'] as $role) Role::firstOrCreate(['name'=>$role,'guard_name'=>'web']);
         $plans=[
             ['name'=>'Free','slug'=>'free','price_mzn'=>0,'event_limit'=>10,'user_limit'=>3,'storage_mb'=>500,'monthly_event_limit'=>false,'features'=>['attendance','signatures','pdf','payments']],
             ['name'=>'Profissional','slug'=>'professional','price_mzn'=>3500,'event_limit'=>20,'user_limit'=>5,'storage_mb'=>10240,'monthly_event_limit'=>true,'features'=>['attendance','signatures','pdf','excel','payments','check_out','multi_day','qr_code','imports','advanced_reports','priority_support']],
@@ -34,8 +34,8 @@ class SinalaSeeder extends Seeder
         Subscription::updateOrCreate(['organization_id'=>$org->id],['plan_id'=>Plan::where('slug','organization')->value('id'),'status'=>'active','starts_at'=>today(),'expires_at'=>today()->addYear(),'amount_mzn'=>7500]);
 
         $organizationUsers=[
-            ['name'=>'Leodemila Zacarias','email'=>'leodemila.zacarias@gmail.com','role'=>'Administrador da Organização'],
-            ['name'=>'João Gomes','email'=>'digit.coordination@cies.it','role'=>'Gestor de Eventos'],
+            ['name'=>'Leodemila Zacarias','email'=>'leodemila.zacarias@gmail.com','role'=>'Coordenadora de campo'],
+            ['name'=>'João Gomes','email'=>'digit.coordination@cies.it','role'=>'Coordenador Geral'],
         ];
         foreach($organizationUsers as $data){$role=$data['role'];unset($data['role']);$user=User::firstOrCreate(['email'=>$data['email']],$data+['organization_id'=>$org->id,'password'=>Hash::make('Cies@2026!')]);$user->update(['organization_id'=>$org->id,'is_super_admin'=>false]);$user->syncRoles([$role]);}
 

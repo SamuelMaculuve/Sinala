@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\{AttendanceController,AuthController,DashboardController,DocumentSettingsController,EventController,ExportController,OrganizationModuleController,ParticipantController,PaymentController};
+use App\Http\Controllers\{AttendanceController,AuthController,DashboardController,DocumentSettingsController,EventController,ExportController,OrganizationModuleController,ParticipantController,PaymentController,UserManagementController};
 use App\Http\Controllers\Admin\PlanController;
 use App\Support\PublicSeo;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +21,8 @@ Route::middleware('auth')->group(function(){
   Route::put('/settings/documents',[DocumentSettingsController::class,'update'])->name('organization.documents.update');
   Route::get('/settings/documents/logo',[DocumentSettingsController::class,'logo'])->name('organization.documents.logo');
   Route::get('/settings/documents/header',[DocumentSettingsController::class,'headerBanner'])->name('organization.documents.header');
+  Route::get('/settings/users',[UserManagementController::class,'index'])->name('organization.users.index');
+  Route::put('/settings/users/{user}',[UserManagementController::class,'update'])->name('organization.users.update');
   Route::resource('events',EventController::class); Route::post('/events/{event}/participants',[ParticipantController::class,'store'])->name('participants.store'); Route::delete('/events/{event}/participants/{participant}',[ParticipantController::class,'destroy'])->name('participants.destroy'); Route::post('/events/{event}/sync-attendance-statuses',[EventController::class,'syncAttendanceStatuses'])->name('events.sync-attendance-statuses');
   Route::post('/events/{event}/close',[EventController::class,'close'])->name('events.close');
   Route::get('/events/{event}/kiosk',[AttendanceController::class,'kiosk'])->name('attendance.kiosk'); Route::post('/events/{event}/attendance',[AttendanceController::class,'store'])->name('attendance.store'); Route::get('/attendance-records/{attendanceRecord}/signature',[AttendanceController::class,'signature'])->name('attendance.signature');

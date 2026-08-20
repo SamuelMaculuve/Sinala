@@ -1,0 +1,8 @@
+@extends('layouts.app',['title'=>'Utilizadores — Sinala'])
+@section('content')
+<div><p class="eyebrow">CONFIGURAÇÕES</p><h1 class="mt-2 text-4xl font-bold">Utilizadores e permissões</h1><p class="mt-2 max-w-2xl text-stone-500">Defina o perfil de cada pessoa da {{ $organization->name }}. O perfil determina o que cada uma pode fazer nos eventos.</p></div>
+<section class="mt-8 overflow-hidden rounded-3xl bg-white"><div class="overflow-x-auto"><table class="w-full min-w-[640px] text-left"><caption class="sr-only">Utilizadores da organização</caption><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil actual</th><th>Alterar perfil</th></tr></thead><tbody>
+@forelse($organization->users as $user)<tr><td class="font-semibold">{{ $user->name }}</td><td>{{ $user->email }}</td><td><span class="badge-success">{{ $user->roles->pluck('name')->join(', ') ?: '—' }}</span></td><td><form method="post" action="{{ route('organization.users.update',$user) }}" class="flex flex-wrap items-center gap-3">@csrf @method('put')<select name="role" class="min-h-11 rounded-xl border border-stone-300 px-3 text-sm">@foreach($roles as $role)<option value="{{ $role }}" @selected($user->roles->pluck('name')->first()===$role)>{{ $role }}</option>@endforeach</select><button class="btn-secondary">Guardar</button></form></td></tr>@empty<tr><td colspan="4" class="py-12 text-center text-stone-400">Ainda não existem utilizadores.</td></tr>@endforelse
+</tbody></table></div></section>
+<div class="mt-6"><a class="btn-secondary" href="{{ route('organization.documents.edit') }}">Configurar cabeçalho dos documentos →</a></div>
+@endsection

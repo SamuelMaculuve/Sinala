@@ -75,7 +75,7 @@ class ExportController extends Controller
         $selectedIds = collect($settings['signatory_user_ids'] ?? [])->map(fn ($id) => (int) $id);
         $managers = $selectedIds->isNotEmpty()
             ? $selectedIds->map(fn ($id) => $organization->users->firstWhere('id', $id))->filter()->take(2)
-            : $organization->users->filter(fn ($user) => $user->roles->pluck('name')->intersect(['Administrador da Organização', 'Gestor de Eventos'])->isNotEmpty())->take(2);
+            : $organization->users->filter(fn ($user) => $user->roles->pluck('name')->intersect(['Administrador da Organização', 'Gestor de Eventos', 'Coordenador Geral', 'Coordenadora de campo'])->isNotEmpty())->take(2);
 
         $logoData = null;
         if ($organization->logo_path && Storage::disk('local')->exists($organization->logo_path)) {

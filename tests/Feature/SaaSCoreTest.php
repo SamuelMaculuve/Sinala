@@ -19,7 +19,7 @@ class SaaSCoreTest extends TestCase
     {
         parent::setUp();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        foreach (['Administrador da Organização','Gestor de Eventos','Operador'] as $role) Role::firstOrCreate(['name'=>$role,'guard_name'=>'web']);
+        foreach (['Administrador da Organização','Gestor de Eventos','Operador','Visualizador/Auditor'] as $role) Role::firstOrCreate(['name'=>$role,'guard_name'=>'web']);
     }
 
     private function organization(string $name='Organização A', int $limit=15): array
@@ -263,6 +263,25 @@ class SaaSCoreTest extends TestCase
         $settings = $org->fresh()->report_settings;
         $this->assertSame('Cabeçalho da Organização A', $settings['header_title']);
         $this->assertSame([$admin->id, $signatory->id], $settings['signatory_user_ids']);
+    }
+
+    public function test_organization_admin_can_change_a_users_role_but_not_remove_the_last_admin(): void
+    {
+        [$org, $admin] = $this->organization();
+        $manager = User::factory()->create(['organization_id' => $org->id]);
+        $manager->assignRole('Gestor de Eventos');
+
+        $this->actingAs($manager)->get(route('organization.users.index'))->assertForbidden();
+
+        $this->actingAs($admin)->get(route('organization.users.index'))->assertOk()->assertSee($manager->name);
+
+        $this->actingAs($admin)->put(route('organization.users.update', $manager), ['role' => 'Operador'])
+            ->assertRedirect()->assertSessionHas('success');
+        $this->assertTrue($manager->fresh()->hasRole('Operador'));
+
+        $this->actingAs($admin)->put(route('organization.users.update', $admin), ['role' => 'Operador'])
+            ->assertStatus(422);
+        $this->assertTrue($admin->fresh()->hasRole('Administrador da Organização'));
     }
 
     public function test_only_super_admin_can_configure_plan_features(): void
