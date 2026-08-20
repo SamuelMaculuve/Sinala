@@ -11,6 +11,7 @@ class ExportController extends Controller
 {
     public function attendance(Event $event)
     {
+        $this->preparePdfGeneration();
         $this->authorize('view', $event);
         $event->load([
             'organization.users.roles',
@@ -29,6 +30,7 @@ class ExportController extends Controller
 
     public function payment(PaymentList $paymentList)
     {
+        $this->preparePdfGeneration();
         $paymentList->load(['event.organization.users.roles', 'payments.participant', 'payments.signature']);
         $event = $paymentList->event;
         $this->authorize('view', $event);
@@ -42,6 +44,7 @@ class ExportController extends Controller
 
     public function payments(Event $event)
     {
+        $this->preparePdfGeneration();
         $this->authorize('view', $event);
         $event->load(['organization.users.roles', 'paymentLists.payments.participant', 'paymentLists.payments.signature']);
         [$settings, $logoData, $secondaryLogosData, $headerBannerData, $managers] = $this->documentOptions($event);
@@ -77,46 +80,90 @@ class ExportController extends Controller
             ? $selectedIds->map(fn ($id) => $organization->users->firstWhere('id', $id))->filter()->take(2)
             : $organization->users->filter(fn ($user) => $user->roles->pluck('name')->intersect(['Administrador da Organização', 'Gestor de Eventos', 'Coordenador Geral', 'Coordenadora de campo'])->isNotEmpty())->take(2);
 
-        $logoData = null;
-        if ($organization->logo_path && Storage::disk('local')->exists($organization->logo_path)) {
-            $mime = Storage::disk('local')->mimeType($organization->logo_path) ?: 'image/png';
-            $logoData = 'data:'.$mime.';base64,'.base64_encode(Storage::disk('local')->get($organization->logo_path));
-        }
+        $logoData = $this->imageData($organization->logo_path, 480, 180);
 
         $secondaryLogosData = collect($settings['secondary_logo_paths'] ?? [])
             ->take(3)
-            ->map(fn ($path) => $this->imageData($path))
+            ->map(fn ($path) => $this->imageData($path, 360, 160))
             ->filter()
             ->values()
             ->all();
 
         $headerBannerData = null;
         $headerBannerPath = $settings['header_banner_path'] ?? null;
-        if ($headerBannerPath && Storage::disk('local')->exists($headerBannerPath)) {
-            $mime = Storage::disk('local')->mimeType($headerBannerPath) ?: 'image/png';
-            $headerBannerData = 'data:'.$mime.';base64,'.base64_encode(Storage::disk('local')->get($headerBannerPath));
-        }
+        $headerBannerData = $this->imageData($headerBannerPath, 1600, 240);
 
         return [$settings, $logoData, $secondaryLogosData, $headerBannerData, $managers];
     }
 
-    private function imageData(?string $path): ?string
+    private function imageData(?string $path, int $maxWidth, int $maxHeight): ?string
     {
-        if (! $path || ! Storage::disk('local')->exists($path)) {
-            return null;
-        }
-
-        $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
-
-        return 'data:'.$mime.';base64,'.base64_encode(Storage::disk('local')->get($path));
+        return self::optimizedImageData($path, $maxWidth, $maxHeight);
     }
 
     public static function signatureData(?string $path): ?string
     {
+        return self::optimizedImageData($path, 240, 80);
+    }
+
+    private static function optimizedImageData(?string $path, int $maxWidth, int $maxHeight): ?string
+    {
+        static $cache = [];
+
         if (! $path || ! Storage::disk('local')->exists($path)) {
             return null;
         }
 
-        return 'data:image/png;base64,'.base64_encode(Storage::disk('local')->get($path));
+        $cacheKey = $path.'-'.$maxWidth.'x'.$maxHeight;
+        if (array_key_exists($cacheKey, $cache)) {
+            return $cache[$cacheKey];
+        }
+
+        $binary = Storage::disk('local')->get($path);
+        if (! function_exists('imagecreatefromstring')) {
+            $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
+
+            return $cache[$cacheKey] = 'data:'.$mime.';base64,'.base64_encode($binary);
+        }
+
+        $source = @imagecreatefromstring($binary);
+        if (! $source) {
+            $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
+
+            return $cache[$cacheKey] = 'data:'.$mime.';base64,'.base64_encode($binary);
+        }
+
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        $scale = min($maxWidth / $sourceWidth, $maxHeight / $sourceHeight, 1);
+        $targetWidth = max(1, (int) round($sourceWidth * $scale));
+        $targetHeight = max(1, (int) round($sourceHeight * $scale));
+        $target = imagecreatetruecolor($targetWidth, $targetHeight);
+        imagealphablending($target, false);
+        imagesavealpha($target, true);
+        $transparent = imagecolorallocatealpha($target, 255, 255, 255, 127);
+        imagefill($target, 0, 0, $transparent);
+        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+
+        ob_start();
+        imagepng($target, null, 6);
+        $optimized = ob_get_clean();
+        imagedestroy($source);
+        imagedestroy($target);
+
+        if (! is_string($optimized) || $optimized === '') {
+            $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
+
+            return $cache[$cacheKey] = 'data:'.$mime.';base64,'.base64_encode($binary);
+        }
+
+        return $cache[$cacheKey] = 'data:image/png;base64,'.base64_encode($optimized);
+    }
+
+    private function preparePdfGeneration(): void
+    {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(120);
+        }
     }
 }

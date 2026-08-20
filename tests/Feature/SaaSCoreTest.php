@@ -325,7 +325,7 @@ class SaaSCoreTest extends TestCase
         $this->actingAs($admin)->put(route('organization.documents.update'), [
             'logo' => UploadedFile::fake()->image('logo.png'),
             'secondary_logos' => [
-                UploadedFile::fake()->image('partner-one.png'),
+                UploadedFile::fake()->image('partner-one.png', 1200, 600),
                 UploadedFile::fake()->image('partner-two.jpg'),
             ],
             'header_banner' => UploadedFile::fake()->image('banner.png'),
@@ -340,6 +340,20 @@ class SaaSCoreTest extends TestCase
         Storage::disk('local')->assertExists($secondaryLogoPaths[1]);
         Storage::disk('local')->assertExists($bannerPath);
         $this->get(route('organization.documents.secondary-logo', 0))->assertOk();
+
+        $optimizedLogo = \App\Http\Controllers\ExportController::signatureData($secondaryLogoPaths[0]);
+        $optimizedSize = getimagesizefromstring(base64_decode(Str::after($optimizedLogo, ',')));
+        $this->assertLessThanOrEqual(240, $optimizedSize[0]);
+        $this->assertLessThanOrEqual(80, $optimizedSize[1]);
+
+        $header = view('exports._document-header', [
+            'headerBannerData' => null,
+            'secondaryLogosData' => ['data:image/png;base64,secondary'],
+            'logoData' => 'data:image/png;base64,principal',
+            'settings' => [],
+            'event' => $this->event($org),
+        ])->render();
+        $this->assertLessThan(strpos($header, 'primary-logo-cell'), strpos($header, 'secondary-logos-cell'));
 
         $this->actingAs($admin)->put(route('organization.documents.update'), [
             'remove_logo' => '1',
