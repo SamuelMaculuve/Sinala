@@ -30,7 +30,8 @@ class SinalaSeeder extends Seeder
         $ciesHeaderPath='organization-headers/cies-header.png';
         if(file_exists($ciesHeaderSource) && !Storage::disk('local')->exists($ciesHeaderPath)) Storage::disk('local')->put($ciesHeaderPath,file_get_contents($ciesHeaderSource));
         $reportSettings=$org->report_settings??[];
-        if(empty($reportSettings['header_banner_path'])){$reportSettings['header_banner_path']=$ciesHeaderPath;$org->update(['report_settings'=>$reportSettings]);}
+        $bannerMissing=empty($reportSettings['header_banner_path']) || !Storage::disk('local')->exists($reportSettings['header_banner_path']);
+        if($bannerMissing && Storage::disk('local')->exists($ciesHeaderPath)){$reportSettings['header_banner_path']=$ciesHeaderPath;$org->update(['report_settings'=>$reportSettings]);}
         Subscription::updateOrCreate(['organization_id'=>$org->id],['plan_id'=>Plan::where('slug','organization')->value('id'),'status'=>'active','starts_at'=>today(),'expires_at'=>today()->addYear(),'amount_mzn'=>7500]);
 
         $organizationUsers=[
