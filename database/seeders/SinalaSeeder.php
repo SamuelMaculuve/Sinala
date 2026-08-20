@@ -28,10 +28,13 @@ class SinalaSeeder extends Seeder
         else{$org=Organization::create(['uuid'=>Str::uuid(),'name'=>'CIES - Centro Informazione e Educazione allo Sviluppo','slug'=>'cies','responsible_name'=>'João Gomes','email'=>'digit.coordination@cies.it','country'=>'Moçambique']);}
         $ciesHeaderSource=public_path('document-assets/cies-header.png');
         $ciesHeaderPath='organization-headers/cies-header.png';
-        if(file_exists($ciesHeaderSource) && !Storage::disk('local')->exists($ciesHeaderPath)) Storage::disk('local')->put($ciesHeaderPath,file_get_contents($ciesHeaderSource));
-        $reportSettings=$org->report_settings??[];
-        $bannerMissing=empty($reportSettings['header_banner_path']) || !Storage::disk('local')->exists($reportSettings['header_banner_path']);
-        if($bannerMissing && Storage::disk('local')->exists($ciesHeaderPath)){$reportSettings['header_banner_path']=$ciesHeaderPath;$org->update(['report_settings'=>$reportSettings]);}
+        if(file_exists($ciesHeaderSource)){
+            // Força sempre a imagem do repositório, substituindo qualquer cópia antiga ou parcial no storage.
+            Storage::disk('local')->put($ciesHeaderPath,file_get_contents($ciesHeaderSource));
+            $reportSettings=$org->report_settings??[];
+            $reportSettings['header_banner_path']=$ciesHeaderPath;
+            $org->update(['report_settings'=>$reportSettings]);
+        }
         Subscription::updateOrCreate(['organization_id'=>$org->id],['plan_id'=>Plan::where('slug','organization')->value('id'),'status'=>'active','starts_at'=>today(),'expires_at'=>today()->addYear(),'amount_mzn'=>7500]);
 
         $organizationUsers=[
