@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class DocumentSettingsController extends Controller
 {
@@ -29,10 +30,34 @@ class DocumentSettingsController extends Controller
             'signatory_user_ids' => 'nullable|array|max:2',
             'signatory_user_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')->where('organization_id', $organization->id)],
             'logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
+            'secondary_logos' => 'nullable|array|max:3',
+            'secondary_logos.*' => 'image|mimes:png,jpg,jpeg|max:2048',
             'header_banner' => 'nullable|image|mimes:png,jpg,jpeg|max:4096',
             'remove_logo' => 'nullable|boolean',
+            'remove_secondary_logos' => 'nullable|array|max:3',
+            'remove_secondary_logos.*' => 'integer|min:0|max:2|distinct',
             'remove_header_banner' => 'nullable|boolean',
         ]);
+
+        $settings = $organization->report_settings ?? [];
+        $secondaryLogoPaths = array_values(array_filter(
+            $settings['secondary_logo_paths'] ?? [],
+            fn ($path) => is_string($path) && $path !== ''
+        ));
+        $removeSecondaryIndexes = collect($data['remove_secondary_logos'] ?? [])
+            ->map(fn ($index) => (int) $index)
+            ->unique()
+            ->sortDesc();
+        $newSecondaryLogos = $request->file('secondary_logos', []);
+        $removedSecondaryCount = $removeSecondaryIndexes
+            ->filter(fn ($index) => isset($secondaryLogoPaths[$index]))
+            ->count();
+
+        if (count($secondaryLogoPaths) - $removedSecondaryCount + count($newSecondaryLogos) > 3) {
+            throw ValidationException::withMessages([
+                'secondary_logos' => 'Pode configurar no máximo três logótipos adicionais.',
+            ]);
+        }
 
         if ($request->hasFile('logo')) {
             if ($organization->logo_path) {
@@ -44,7 +69,19 @@ class DocumentSettingsController extends Controller
             $organization->logo_path = null;
         }
 
-        $settings = $organization->report_settings ?? [];
+        foreach ($removeSecondaryIndexes as $index) {
+            if (isset($secondaryLogoPaths[$index])) {
+                Storage::disk('local')->delete($secondaryLogoPaths[$index]);
+                unset($secondaryLogoPaths[$index]);
+            }
+        }
+
+        $secondaryLogoPaths = array_values($secondaryLogoPaths);
+        foreach ($newSecondaryLogos as $logo) {
+            $secondaryLogoPaths[] = $logo->store('organization-logos/secondary', 'local');
+        }
+        $settings['secondary_logo_paths'] = $secondaryLogoPaths;
+
         if ($request->hasFile('header_banner')) {
             if (! empty($settings['header_banner_path'])) {
                 Storage::disk('local')->delete($settings['header_banner_path']);
@@ -55,7 +92,7 @@ class DocumentSettingsController extends Controller
             $settings['header_banner_path'] = null;
         }
 
-        unset($data['logo'], $data['header_banner'], $data['remove_logo'], $data['remove_header_banner']);
+        unset($data['logo'], $data['secondary_logos'], $data['header_banner'], $data['remove_logo'], $data['remove_secondary_logos'], $data['remove_header_banner']);
         $organization->report_settings = array_merge($settings, $data);
         $organization->save();
 
@@ -73,6 +110,15 @@ class DocumentSettingsController extends Controller
     public function headerBanner()
     {
         $path = request()->user()->organization->report_settings['header_banner_path'] ?? null;
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->response($path, null, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
+    public function secondaryLogo(int $index)
+    {
+        $paths = request()->user()->organization->report_settings['secondary_logo_paths'] ?? [];
+        $path = $paths[$index] ?? null;
         abort_unless($path && Storage::disk('local')->exists($path), 404);
 
         return Storage::disk('local')->response($path, null, ['Cache-Control' => 'private, max-age=3600']);

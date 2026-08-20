@@ -20,9 +20,9 @@ class ExportController extends Controller
         ]);
 
         $records = $event->attendanceRecords->keyBy(fn ($record) => $record->event_day_id.'-'.$record->participant_id.'-'.$record->type);
-        [$settings, $logoData, $headerBannerData, $managers] = $this->documentOptions($event);
+        [$settings, $logoData, $secondaryLogosData, $headerBannerData, $managers] = $this->documentOptions($event);
 
-        return Pdf::loadView('exports.attendance', compact('event', 'records', 'settings', 'logoData', 'headerBannerData', 'managers'))
+        return Pdf::loadView('exports.attendance', compact('event', 'records', 'settings', 'logoData', 'secondaryLogosData', 'headerBannerData', 'managers'))
             ->setPaper('a4', 'landscape')
             ->download('lista-presenca-'.$event->starts_on->format('Y-m-d').'.pdf');
     }
@@ -32,10 +32,10 @@ class ExportController extends Controller
         $paymentList->load(['event.organization.users.roles', 'payments.participant', 'payments.signature']);
         $event = $paymentList->event;
         $this->authorize('view', $event);
-        [$settings, $logoData, $headerBannerData, $managers] = $this->documentOptions($event);
+        [$settings, $logoData, $secondaryLogosData, $headerBannerData, $managers] = $this->documentOptions($event);
         $attendanceSignatures = $this->attendanceSignatures($event);
 
-        return Pdf::loadView('exports.payment', compact('event', 'paymentList', 'settings', 'logoData', 'headerBannerData', 'managers', 'attendanceSignatures'))
+        return Pdf::loadView('exports.payment', compact('event', 'paymentList', 'settings', 'logoData', 'secondaryLogosData', 'headerBannerData', 'managers', 'attendanceSignatures'))
             ->setPaper('a4', 'landscape')
             ->download('lista-recebimento-'.$paymentList->payment_date->format('Y-m-d').'.pdf');
     }
@@ -44,10 +44,10 @@ class ExportController extends Controller
     {
         $this->authorize('view', $event);
         $event->load(['organization.users.roles', 'paymentLists.payments.participant', 'paymentLists.payments.signature']);
-        [$settings, $logoData, $headerBannerData, $managers] = $this->documentOptions($event);
+        [$settings, $logoData, $secondaryLogosData, $headerBannerData, $managers] = $this->documentOptions($event);
         $attendanceSignatures = $this->attendanceSignatures($event);
 
-        return Pdf::loadView('exports.payments-all', compact('event', 'settings', 'logoData', 'headerBannerData', 'managers', 'attendanceSignatures'))
+        return Pdf::loadView('exports.payments-all', compact('event', 'settings', 'logoData', 'secondaryLogosData', 'headerBannerData', 'managers', 'attendanceSignatures'))
             ->setPaper('a4', 'landscape')
             ->download('listas-pagamento-'.$event->starts_on->format('Y-m-d').'.pdf');
     }
@@ -83,6 +83,13 @@ class ExportController extends Controller
             $logoData = 'data:'.$mime.';base64,'.base64_encode(Storage::disk('local')->get($organization->logo_path));
         }
 
+        $secondaryLogosData = collect($settings['secondary_logo_paths'] ?? [])
+            ->take(3)
+            ->map(fn ($path) => $this->imageData($path))
+            ->filter()
+            ->values()
+            ->all();
+
         $headerBannerData = null;
         $headerBannerPath = $settings['header_banner_path'] ?? null;
         if ($headerBannerPath && Storage::disk('local')->exists($headerBannerPath)) {
@@ -90,7 +97,18 @@ class ExportController extends Controller
             $headerBannerData = 'data:'.$mime.';base64,'.base64_encode(Storage::disk('local')->get($headerBannerPath));
         }
 
-        return [$settings, $logoData, $headerBannerData, $managers];
+        return [$settings, $logoData, $secondaryLogosData, $headerBannerData, $managers];
+    }
+
+    private function imageData(?string $path): ?string
+    {
+        if (! $path || ! Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        $mime = Storage::disk('local')->mimeType($path) ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode(Storage::disk('local')->get($path));
     }
 
     public static function signatureData(?string $path): ?string

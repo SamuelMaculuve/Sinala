@@ -317,32 +317,72 @@ class SaaSCoreTest extends TestCase
         $this->assertSame('Nova Empresa', $participant->company);
     }
 
-    public function test_organization_admin_can_remove_logo_and_header_banner(): void
+    public function test_organization_admin_can_manage_report_logos_and_header_banner(): void
     {
         Storage::fake('local');
         [$org, $admin] = $this->organization();
 
         $this->actingAs($admin)->put(route('organization.documents.update'), [
             'logo' => UploadedFile::fake()->image('logo.png'),
+            'secondary_logos' => [
+                UploadedFile::fake()->image('partner-one.png'),
+                UploadedFile::fake()->image('partner-two.jpg'),
+            ],
             'header_banner' => UploadedFile::fake()->image('banner.png'),
         ])->assertRedirect();
 
         $org->refresh();
         $logoPath = $org->logo_path;
+        $secondaryLogoPaths = $org->report_settings['secondary_logo_paths'];
         $bannerPath = $org->report_settings['header_banner_path'];
         Storage::disk('local')->assertExists($logoPath);
+        Storage::disk('local')->assertExists($secondaryLogoPaths[0]);
+        Storage::disk('local')->assertExists($secondaryLogoPaths[1]);
         Storage::disk('local')->assertExists($bannerPath);
+        $this->get(route('organization.documents.secondary-logo', 0))->assertOk();
 
         $this->actingAs($admin)->put(route('organization.documents.update'), [
             'remove_logo' => '1',
+            'remove_secondary_logos' => ['0'],
             'remove_header_banner' => '1',
         ])->assertRedirect()->assertSessionHas('success');
 
         $org->refresh();
         $this->assertNull($org->logo_path);
         $this->assertNull($org->report_settings['header_banner_path'] ?? null);
+        $this->assertSame([$secondaryLogoPaths[1]], $org->report_settings['secondary_logo_paths']);
         Storage::disk('local')->assertMissing($logoPath);
+        Storage::disk('local')->assertMissing($secondaryLogoPaths[0]);
+        Storage::disk('local')->assertExists($secondaryLogoPaths[1]);
         Storage::disk('local')->assertMissing($bannerPath);
+
+        $event = $this->event($org);
+        $event->days()->create(['date' => today()]);
+        $this->get(route('exports.attendance', $event))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_document_header_rejects_more_than_three_secondary_logos(): void
+    {
+        Storage::fake('local');
+        [$org, $admin] = $this->organization();
+
+        $this->actingAs($admin)->put(route('organization.documents.update'), [
+            'secondary_logos' => [
+                UploadedFile::fake()->image('one.png'),
+                UploadedFile::fake()->image('two.png'),
+                UploadedFile::fake()->image('three.png'),
+            ],
+        ])->assertRedirect();
+
+        $originalPaths = $org->fresh()->report_settings['secondary_logo_paths'];
+        $this->put(route('organization.documents.update'), [
+            'secondary_logos' => [UploadedFile::fake()->image('four.png')],
+        ])->assertSessionHasErrors('secondary_logos');
+
+        $this->assertSame($originalPaths, $org->fresh()->report_settings['secondary_logo_paths']);
+        $this->assertCount(3, Storage::disk('local')->allFiles('organization-logos/secondary'));
     }
 
     public function test_organization_admin_can_change_a_users_role_but_not_remove_the_last_admin(): void

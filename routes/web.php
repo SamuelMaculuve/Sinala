@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function(){
   Route::get('/settings/documents',[DocumentSettingsController::class,'edit'])->name('organization.documents.edit');
   Route::put('/settings/documents',[DocumentSettingsController::class,'update'])->name('organization.documents.update');
   Route::get('/settings/documents/logo',[DocumentSettingsController::class,'logo'])->name('organization.documents.logo');
+  Route::get('/settings/documents/logos/{index}',[DocumentSettingsController::class,'secondaryLogo'])->whereNumber('index')->name('organization.documents.secondary-logo');
   Route::get('/settings/documents/header',[DocumentSettingsController::class,'headerBanner'])->name('organization.documents.header');
   Route::get('/settings/users',[UserManagementController::class,'index'])->name('organization.users.index');
   Route::put('/settings/users/{user}',[UserManagementController::class,'update'])->name('organization.users.update');
