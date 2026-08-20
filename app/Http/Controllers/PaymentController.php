@@ -72,6 +72,18 @@ class PaymentController extends Controller
         return redirect()->route('payments.lists.show', $list)->with('success', 'Lista criada com os participantes marcados como presentes. Cada pagamento requer assinatura.');
     }
 
+    public function destroyList(PaymentList $paymentList)
+    {
+        $paymentList->load('event');
+        $event = $paymentList->event;
+        $this->authorize('managePayments', $event);
+        abort_if($paymentList->payments()->where('status', 'paid')->exists(), 422, 'Não é possível apagar uma lista com pagamentos já confirmados.');
+
+        $paymentList->delete();
+
+        return redirect()->route('events.show', $event)->with('success', 'Lista de pagamento removida. Pode criar uma nova a qualquer momento.');
+    }
+
     public function confirm(Request $request, ParticipantPayment $payment, SignatureService $signatures)
     {
         $payment->load('paymentList.event');

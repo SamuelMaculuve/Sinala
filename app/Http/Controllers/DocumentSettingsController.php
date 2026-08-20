@@ -30,6 +30,8 @@ class DocumentSettingsController extends Controller
             'signatory_user_ids.*' => ['integer', 'distinct', Rule::exists('users', 'id')->where('organization_id', $organization->id)],
             'logo' => 'nullable|image|mimes:png,jpg,jpeg|max:2048',
             'header_banner' => 'nullable|image|mimes:png,jpg,jpeg|max:4096',
+            'remove_logo' => 'nullable|boolean',
+            'remove_header_banner' => 'nullable|boolean',
         ]);
 
         if ($request->hasFile('logo')) {
@@ -37,6 +39,9 @@ class DocumentSettingsController extends Controller
                 Storage::disk('local')->delete($organization->logo_path);
             }
             $organization->logo_path = $request->file('logo')->store('organization-logos', 'local');
+        } elseif ($request->boolean('remove_logo') && $organization->logo_path) {
+            Storage::disk('local')->delete($organization->logo_path);
+            $organization->logo_path = null;
         }
 
         $settings = $organization->report_settings ?? [];
@@ -45,9 +50,12 @@ class DocumentSettingsController extends Controller
                 Storage::disk('local')->delete($settings['header_banner_path']);
             }
             $settings['header_banner_path'] = $request->file('header_banner')->store('organization-headers', 'local');
+        } elseif ($request->boolean('remove_header_banner') && ! empty($settings['header_banner_path'])) {
+            Storage::disk('local')->delete($settings['header_banner_path']);
+            $settings['header_banner_path'] = null;
         }
 
-        unset($data['logo'], $data['header_banner']);
+        unset($data['logo'], $data['header_banner'], $data['remove_logo'], $data['remove_header_banner']);
         $organization->report_settings = array_merge($settings, $data);
         $organization->save();
 

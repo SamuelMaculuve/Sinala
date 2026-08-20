@@ -14,6 +14,8 @@ Route::middleware('auth')->group(function(){
  Route::post('/sair',[AuthController::class,'logout'])->name('logout');
  Route::middleware('organization')->group(function(){Route::get('/dashboard',DashboardController::class)->name('dashboard');
   Route::get('/participants',[OrganizationModuleController::class,'participants'])->name('organization.participants');
+  Route::get('/participants/{participant}/edit',[ParticipantController::class,'edit'])->name('participants.edit');
+  Route::put('/participants/{participant}',[ParticipantController::class,'update'])->name('participants.update');
   Route::get('/attendance',[OrganizationModuleController::class,'attendance'])->name('organization.attendance');
   Route::get('/payments',[OrganizationModuleController::class,'payments'])->name('organization.payments');
   Route::get('/reports',[OrganizationModuleController::class,'reports'])->name('organization.reports');
@@ -30,6 +32,7 @@ Route::middleware('auth')->group(function(){
   Route::get('/events/{event}/exports/payments.pdf',[ExportController::class,'payments'])->name('exports.payments');
   Route::get('/payment-lists/{paymentList}/export.pdf',[ExportController::class,'payment'])->name('exports.payment');
   Route::get('/payment-lists/{paymentList}',[PaymentController::class,'showList'])->name('payments.lists.show');
+  Route::delete('/payment-lists/{paymentList}',[PaymentController::class,'destroyList'])->name('payments.lists.destroy');
   Route::get('/payments/select-event',[PaymentController::class,'selectEvent'])->name('payments.select-event');
   Route::get('/events/{event}/payments/create',[PaymentController::class,'create'])->name('payments.lists.create');
   Route::post('/events/{event}/payment-lists',[PaymentController::class,'storeList'])->name('payments.lists.store'); Route::post('/payments/{payment}/confirm',[PaymentController::class,'confirm'])->name('payments.confirm');});

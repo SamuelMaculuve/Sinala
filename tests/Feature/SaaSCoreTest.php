@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\{AttendanceRecord,Event,Organization,Participant,ParticipantPayment,PaymentList,Plan,Subscription,User};
 use App\Services\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -93,6 +95,36 @@ class SaaSCoreTest extends TestCase
         $this->post(route('payments.confirm', $payment), ['signature'=>'data:image/png;base64,'.base64_encode(str_repeat('a', 101))])->assertSessionHas('success');
         $this->assertSame('paid', $payment->fresh()->status);
         $this->assertDatabaseHas('payment_signatures', ['participant_payment_id' => $payment->id]);
+    }
+
+    public function test_payment_list_can_be_deleted_and_recreated_but_not_once_paid(): void
+    {
+        [$org, $user] = $this->organization();
+        $event = $this->event($org);
+        $participant = Participant::create(['uuid' => Str::uuid(), 'organization_id' => $org->id, 'full_name' => 'Participante']);
+        $event->participants()->attach($participant->id, ['status' => 'pending']);
+
+        $this->actingAs($user)->post(route('payments.lists.store', $event), [
+            'name' => 'Lista errada', 'type' => 'Transporte', 'default_amount' => 500, 'currency' => 'MZN', 'payment_date' => today()->format('Y-m-d'),
+            'participant_ids' => [$participant->id],
+        ]);
+        $list = PaymentList::firstOrFail();
+
+        $this->delete(route('payments.lists.destroy', $list))->assertRedirect(route('events.show', $event))->assertSessionHas('success');
+        $this->assertSoftDeleted($list);
+
+        $this->post(route('payments.lists.store', $event), [
+            'name' => 'Lista corrigida', 'type' => 'Transporte', 'default_amount' => 800, 'currency' => 'MZN', 'payment_date' => today()->format('Y-m-d'),
+            'participant_ids' => [$participant->id],
+        ]);
+        $newList = PaymentList::whereNull('deleted_at')->firstOrFail();
+        $this->assertSame('Lista corrigida', $newList->name);
+
+        $payment = $newList->payments->first();
+        $this->post(route('payments.confirm', $payment), ['signature' => 'data:image/png;base64,'.base64_encode(str_repeat('a', 101))]);
+
+        $this->delete(route('payments.lists.destroy', $newList))->assertStatus(422);
+        $this->assertNull($newList->fresh()->deleted_at);
     }
 
     public function test_attendance_signature_marks_participant_present_and_duplicate_submit_keeps_status(): void
@@ -263,6 +295,54 @@ class SaaSCoreTest extends TestCase
         $settings = $org->fresh()->report_settings;
         $this->assertSame('Cabeçalho da Organização A', $settings['header_title']);
         $this->assertSame([$admin->id, $signatory->id], $settings['signatory_user_ids']);
+    }
+
+    public function test_participant_data_can_be_edited_by_authorised_user(): void
+    {
+        [$org, $admin] = $this->organization();
+        [$otherOrg] = $this->organization('Organização B');
+        $participant = Participant::create(['uuid' => Str::uuid(), 'organization_id' => $org->id, 'full_name' => 'Nome Antigo', 'phone' => '840000000']);
+        $stranger = User::factory()->create(['organization_id' => $otherOrg->id]);
+        $stranger->assignRole('Administrador da Organização');
+
+        $this->actingAs($stranger)->get(route('participants.edit', $participant))->assertNotFound();
+
+        $this->actingAs($admin)->put(route('participants.update', $participant), [
+            'full_name' => 'Nome Novo', 'phone' => '841111111', 'company' => 'Nova Empresa',
+        ])->assertRedirect(route('organization.participants'))->assertSessionHas('success');
+
+        $participant->refresh();
+        $this->assertSame('Nome Novo', $participant->full_name);
+        $this->assertSame('841111111', $participant->phone);
+        $this->assertSame('Nova Empresa', $participant->company);
+    }
+
+    public function test_organization_admin_can_remove_logo_and_header_banner(): void
+    {
+        Storage::fake('local');
+        [$org, $admin] = $this->organization();
+
+        $this->actingAs($admin)->put(route('organization.documents.update'), [
+            'logo' => UploadedFile::fake()->image('logo.png'),
+            'header_banner' => UploadedFile::fake()->image('banner.png'),
+        ])->assertRedirect();
+
+        $org->refresh();
+        $logoPath = $org->logo_path;
+        $bannerPath = $org->report_settings['header_banner_path'];
+        Storage::disk('local')->assertExists($logoPath);
+        Storage::disk('local')->assertExists($bannerPath);
+
+        $this->actingAs($admin)->put(route('organization.documents.update'), [
+            'remove_logo' => '1',
+            'remove_header_banner' => '1',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $org->refresh();
+        $this->assertNull($org->logo_path);
+        $this->assertNull($org->report_settings['header_banner_path'] ?? null);
+        Storage::disk('local')->assertMissing($logoPath);
+        Storage::disk('local')->assertMissing($bannerPath);
     }
 
     public function test_organization_admin_can_change_a_users_role_but_not_remove_the_last_admin(): void

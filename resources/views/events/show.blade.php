@@ -17,7 +17,7 @@
       <div class="mt-5 overflow-auto">
         <table class="w-full min-w-[760px] text-left">
           <caption class="sr-only">Participantes do evento</caption>
-          <thead><tr><th>Nome</th><th>Organização</th><th>Telefone</th><th>Estado</th><th class="text-right">Assinatura</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Organização</th><th>Telefone</th><th>Estado</th><th class="text-right">Assinatura</th><th></th></tr></thead>
           <tbody>
             @foreach($participants as $p)
               @php
@@ -39,6 +39,7 @@
                     <span class="text-sm text-stone-400">Sem assinatura</span>
                   @endif
                 </td>
+                <td class="text-right"><a class="btn-secondary min-h-10 px-4 text-sm" href="{{ route('participants.edit',$p) }}">Editar</a></td>
               </tr>
             @endforeach
           </tbody>
@@ -47,7 +48,7 @@
       <div class="mt-5">{{ $participants->links() }}</div>
     </section>
 
-    <section class="rounded-3xl bg-white p-6"><div class="flex items-center justify-between"><h2 class="text-2xl font-bold">Listas de pagamento</h2><strong>{{ $event->paymentLists->count() }}</strong></div><p class="mt-1 text-sm text-stone-500">Geradas a partir dos participantes marcados como presentes. O recebimento exige assinatura.</p><div class="mt-5 space-y-3">@forelse($event->paymentLists as $list)<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"><div><strong>{{ $list->name }}</strong><p class="mt-1 text-sm text-stone-500">{{ $list->type }} · {{ number_format($list->default_amount,2,',','.') }} {{ $list->currency }}</p></div><div class="flex flex-wrap gap-2"><a class="btn-primary" href="{{ route('payments.lists.show',$list) }}">Abrir e recolher assinaturas</a><a class="btn-secondary" href="{{ route('exports.payment',$list) }}">↓ PDF</a></div></div>@empty<p class="rounded-2xl bg-stone-50 p-5 text-sm text-stone-500">Ainda não existem listas de pagamento neste evento.</p>@endforelse</div></section>
+    <section class="rounded-3xl bg-white p-6"><div class="flex items-center justify-between"><h2 class="text-2xl font-bold">Listas de pagamento</h2><strong>{{ $event->paymentLists->count() }}</strong></div><p class="mt-1 text-sm text-stone-500">Geradas a partir dos participantes marcados como presentes. O recebimento exige assinatura.</p><div class="mt-5 space-y-3">@forelse($event->paymentLists as $list)<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4"><div><strong>{{ $list->name }}</strong><p class="mt-1 text-sm text-stone-500">{{ $list->type }} · {{ number_format($list->default_amount,2,',','.') }} {{ $list->currency }}</p></div><div class="flex flex-wrap gap-2"><a class="btn-primary" href="{{ route('payments.lists.show',$list) }}">Abrir e recolher assinaturas</a><a class="btn-secondary" href="{{ route('exports.payment',$list) }}">↓ PDF</a>@can('managePayments',$event)@if($list->payments->where('status','paid')->isEmpty())<form method="post" action="{{ route('payments.lists.destroy',$list) }}" onsubmit="return confirm('Apagar a lista \'{{ $list->name }}\'? Pode criar uma nova de seguida.')">@csrf @method('delete')<button class="btn-secondary text-red-600">Apagar</button></form>@endif @endcan</div></div>@empty<p class="rounded-2xl bg-stone-50 p-5 text-sm text-stone-500">Ainda não existem listas de pagamento neste evento.</p>@endforelse</div></section>
   </div>
 
   <aside class="space-y-6">
