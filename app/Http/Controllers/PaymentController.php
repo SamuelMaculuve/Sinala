@@ -84,6 +84,19 @@ class PaymentController extends Controller
         return redirect()->route('events.show', $event)->with('success', 'Lista de pagamento removida. Pode criar uma nova a qualquer momento.');
     }
 
+    public function updateAmount(Request $request, ParticipantPayment $payment)
+    {
+        $payment->load('paymentList.event', 'participant');
+        $event = $payment->paymentList->event;
+        $this->authorize('managePayments', $event);
+        abort_if($payment->status === 'paid', 422, 'Não é possível alterar o valor de um pagamento já confirmado.');
+
+        $data = $request->validate(['amount' => 'required|numeric|min:0']);
+        $payment->update(['amount' => $data['amount']]);
+
+        return back()->with('success', 'Valor de '.$payment->participant->full_name.' actualizado.');
+    }
+
     public function confirm(Request $request, ParticipantPayment $payment, SignatureService $signatures)
     {
         $payment->load('paymentList.event');

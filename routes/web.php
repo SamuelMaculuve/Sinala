@@ -16,6 +16,7 @@ Route::middleware('auth')->group(function(){
   Route::get('/participants',[OrganizationModuleController::class,'participants'])->name('organization.participants');
   Route::get('/participants/{participant}/edit',[ParticipantController::class,'edit'])->name('participants.edit');
   Route::put('/participants/{participant}',[ParticipantController::class,'update'])->name('participants.update');
+  Route::put('/participants/{participant}/quick',[ParticipantController::class,'quickUpdate'])->name('participants.quick-update');
   Route::get('/attendance',[OrganizationModuleController::class,'attendance'])->name('organization.attendance');
   Route::get('/payments',[OrganizationModuleController::class,'payments'])->name('organization.payments');
   Route::get('/reports',[OrganizationModuleController::class,'reports'])->name('organization.reports');
@@ -36,6 +37,6 @@ Route::middleware('auth')->group(function(){
   Route::delete('/payment-lists/{paymentList}',[PaymentController::class,'destroyList'])->name('payments.lists.destroy');
   Route::get('/payments/select-event',[PaymentController::class,'selectEvent'])->name('payments.select-event');
   Route::get('/events/{event}/payments/create',[PaymentController::class,'create'])->name('payments.lists.create');
-  Route::post('/events/{event}/payment-lists',[PaymentController::class,'storeList'])->name('payments.lists.store'); Route::post('/payments/{payment}/confirm',[PaymentController::class,'confirm'])->name('payments.confirm');});
+  Route::post('/events/{event}/payment-lists',[PaymentController::class,'storeList'])->name('payments.lists.store'); Route::post('/payments/{payment}/confirm',[PaymentController::class,'confirm'])->name('payments.confirm'); Route::put('/payments/{payment}/amount',[PaymentController::class,'updateAmount'])->name('payments.amount.update');});
 });
 Route::middleware(['auth','super.admin'])->prefix('admin')->name('admin.')->group(function(){Route::resource('plans',PlanController::class);});

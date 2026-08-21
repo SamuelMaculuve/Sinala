@@ -97,6 +97,29 @@ class SaaSCoreTest extends TestCase
         $this->assertDatabaseHas('payment_signatures', ['participant_payment_id' => $payment->id]);
     }
 
+    public function test_pending_payment_amount_can_be_edited_but_not_once_paid(): void
+    {
+        [$org, $user] = $this->organization();
+        $event = $this->event($org);
+        $participant = Participant::create(['uuid' => Str::uuid(), 'organization_id' => $org->id, 'full_name' => 'Participante']);
+        $event->participants()->attach($participant->id, ['status' => 'pending']);
+
+        $this->actingAs($user)->post(route('payments.lists.store', $event), [
+            'name' => 'Lista', 'type' => 'Transporte', 'default_amount' => 500, 'currency' => 'MZN', 'payment_date' => today()->format('Y-m-d'),
+            'participant_ids' => [$participant->id],
+        ]);
+        $payment = PaymentList::firstOrFail()->payments->first();
+
+        $this->put(route('payments.amount.update', $payment), ['amount' => 750])
+            ->assertRedirect()->assertSessionHas('success');
+        $this->assertSame('750.00', $payment->fresh()->amount);
+
+        $this->post(route('payments.confirm', $payment), ['signature' => 'data:image/png;base64,'.base64_encode(str_repeat('a', 101))]);
+
+        $this->put(route('payments.amount.update', $payment), ['amount' => 900])->assertStatus(422);
+        $this->assertSame('750.00', $payment->fresh()->amount);
+    }
+
     public function test_payment_list_can_be_deleted_and_recreated_but_not_once_paid(): void
     {
         [$org, $user] = $this->organization();
@@ -295,6 +318,22 @@ class SaaSCoreTest extends TestCase
         $settings = $org->fresh()->report_settings;
         $this->assertSame('Cabeçalho da Organização A', $settings['header_title']);
         $this->assertSame([$admin->id, $signatory->id], $settings['signatory_user_ids']);
+    }
+
+    public function test_participant_can_be_quick_edited_from_the_list_without_a_dedicated_page(): void
+    {
+        [$org, $admin] = $this->organization();
+        $participant = Participant::create(['uuid' => Str::uuid(), 'organization_id' => $org->id, 'full_name' => 'Nome Antigo', 'phone' => '840000000', 'notes' => 'notas confidenciais']);
+
+        $this->actingAs($admin)->put(route('participants.quick-update', $participant), [
+            'full_name' => 'Nome Rápido', 'phone' => '842222222', 'company' => 'Empresa Rápida',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $participant->refresh();
+        $this->assertSame('Nome Rápido', $participant->full_name);
+        $this->assertSame('842222222', $participant->phone);
+        $this->assertSame('Empresa Rápida', $participant->company);
+        $this->assertSame('notas confidenciais', $participant->notes);
     }
 
     public function test_participant_data_can_be_edited_by_authorised_user(): void

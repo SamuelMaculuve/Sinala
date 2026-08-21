@@ -26,6 +26,15 @@ class ParticipantController extends Controller {
         return redirect()->route('organization.participants')->with('success','Dados de '.$participant->full_name.' actualizados.');
     }
 
+    public function quickUpdate(Request $r,Participant $participant)
+    {
+        $this->authorizeParticipant($r,$participant);
+        $data=$r->validate(['full_name'=>'required|max:180','phone'=>'nullable|max:40','company'=>'nullable|max:180']);
+        $participant->update($data);
+
+        return back()->with('success','Dados de '.$participant->full_name.' actualizados.');
+    }
+
     private function authorizeParticipant(Request $r,Participant $participant): void
     {
         abort_unless($participant->organization_id===$r->user()->organization_id,404);
