@@ -484,7 +484,7 @@ class SaaSCoreTest extends TestCase
         $this->seed(SinalaSeeder::class);
         $this->withSession(['url.intended'=>route('admin.plans.index')])->post(route('login'),['email'=>'digit.coordination@cies.it','password'=>'Cies@2026!'])->assertRedirect(route('dashboard'));
         $this->post(route('logout'));
-        $this->withSession(['url.intended'=>route('dashboard')])->post(route('login'),['email'=>'samuelmaculuve8@gmail.com','password'=>'Admin@2026!'])->assertRedirect(route('admin.plans.index'));
-        $this->get(route('dashboard'))->assertRedirect(route('admin.plans.index'));
+        $this->withSession(['url.intended'=>route('dashboard')])->post(route('login'),['email'=>'samuelmaculuve8@gmail.com','password'=>'Admin@2026!'])->assertRedirect(route('admin.dashboard'));
+        $this->get(route('dashboard'))->assertRedirect(route('admin.dashboard'));
     }
 }

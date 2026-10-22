@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\{AttendanceController,AuthController,DashboardController,DocumentSettingsController,EventController,ExportController,OrganizationModuleController,ParticipantController,PaymentController,UserManagementController};
-use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\{AttendanceController,AuthController,BillingController,DashboardController,DocumentSettingsController,EventController,ExportController,OrganizationModuleController,ParticipantController,PaymentController,UserManagementController};
+use App\Http\Controllers\Admin\{DashboardController as AdminDashboardController,OrganizationController as AdminOrganizationController,PlanController,SubscriptionPaymentController as AdminSubscriptionPaymentController};
 use App\Support\PublicSeo;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function(){
   Route::get('/settings/documents/logo',[DocumentSettingsController::class,'logo'])->name('organization.documents.logo');
   Route::get('/settings/documents/logos/{index}',[DocumentSettingsController::class,'secondaryLogo'])->whereNumber('index')->name('organization.documents.secondary-logo');
   Route::get('/settings/documents/header',[DocumentSettingsController::class,'headerBanner'])->name('organization.documents.header');
+  Route::get('/settings/subscription',[BillingController::class,'index'])->name('organization.billing');
+  Route::post('/settings/subscription/{plan}/checkout',[BillingController::class,'checkout'])->middleware('throttle:6,1')->name('organization.billing.checkout');
   Route::get('/settings/users',[UserManagementController::class,'index'])->name('organization.users.index');
   Route::put('/settings/users/{user}',[UserManagementController::class,'update'])->name('organization.users.update');
   Route::resource('events',EventController::class); Route::post('/events/{event}/participants',[ParticipantController::class,'store'])->name('participants.store'); Route::delete('/events/{event}/participants/{participant}',[ParticipantController::class,'destroy'])->name('participants.destroy'); Route::post('/events/{event}/sync-attendance-statuses',[EventController::class,'syncAttendanceStatuses'])->name('events.sync-attendance-statuses');
@@ -39,4 +41,18 @@ Route::middleware('auth')->group(function(){
   Route::get('/events/{event}/payments/create',[PaymentController::class,'create'])->name('payments.lists.create');
   Route::post('/events/{event}/payment-lists',[PaymentController::class,'storeList'])->name('payments.lists.store'); Route::post('/payments/{payment}/confirm',[PaymentController::class,'confirm'])->name('payments.confirm'); Route::put('/payments/{payment}/amount',[PaymentController::class,'updateAmount'])->name('payments.amount.update');});
 });
-Route::middleware(['auth','super.admin'])->prefix('admin')->name('admin.')->group(function(){Route::resource('plans',PlanController::class);});
+Route::middleware(['auth','super.admin'])->prefix('admin')->name('admin.')->group(function(){
+ Route::get('/',AdminDashboardController::class)->name('dashboard');
+ Route::resource('plans',PlanController::class);
+ Route::get('/organizations',[AdminOrganizationController::class,'index'])->name('organizations.index');
+ Route::get('/organizations/{organization}',[AdminOrganizationController::class,'show'])->name('organizations.show');
+ Route::put('/organizations/{organization}',[AdminOrganizationController::class,'update'])->name('organizations.update');
+ Route::put('/organizations/{organization}/status',[AdminOrganizationController::class,'updateStatus'])->name('organizations.status');
+ Route::post('/organizations/{organization}/plan',[AdminOrganizationController::class,'assignPlan'])->name('organizations.assign-plan');
+ Route::put('/organizations/{organization}/subscriptions/{subscription}',[AdminOrganizationController::class,'updateSubscription'])->name('organizations.subscriptions.update');
+ Route::post('/organizations/{organization}/subscriptions/{subscription}/extend',[AdminOrganizationController::class,'extend'])->name('organizations.subscriptions.extend');
+ Route::post('/organizations/{organization}/users/{user}/reset-password',[AdminOrganizationController::class,'resetUserPassword'])->name('organizations.users.reset-password');
+ Route::get('/payments',[AdminSubscriptionPaymentController::class,'index'])->name('payments.index');
+ Route::post('/payments/{payment}/confirm',[AdminSubscriptionPaymentController::class,'confirm'])->name('payments.confirm');
+ Route::post('/payments/{payment}/reject',[AdminSubscriptionPaymentController::class,'reject'])->name('payments.reject');
+});

@@ -13,11 +13,12 @@
 <div class="mt-8 grid gap-6 xl:grid-cols-[1fr_360px]">
   <div class="space-y-6">
     <section class="rounded-3xl bg-white p-6">
-      <div class="flex justify-between"><h2 class="text-2xl font-bold">Participantes</h2><strong>{{ $event->participants_count }}</strong></div>
+      <div class="flex justify-between"><h2 class="text-2xl font-bold">Participantes</h2><strong>{{ $event->participants_count }}{{ $participantLimit ? ' / '.$participantLimit : '' }}</strong></div>
+      @if($participantLimit && $event->participants_count >= $participantLimit)<p class="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Limite de participantes do pacote atingido. <a class="font-semibold underline" href="{{ route('organization.billing') }}">Ver pacotes</a></p>@endif
       <div class="mt-5 overflow-auto">
         <table class="w-full min-w-[760px] text-left">
           <caption class="sr-only">Participantes do evento</caption>
-          <thead><tr><th>Nome</th><th>Organização</th><th>Telefone</th><th>Estado</th><th class="text-right">Assinatura</th><th></th></tr></thead>
+          <thead><tr><th>Nome</th><th>Organização</th><th>Contacto</th><th>Estado</th><th class="text-right">Assinatura</th><th></th></tr></thead>
           <tbody>
             @foreach($participants as $p)
               @php
@@ -30,7 +31,7 @@
               <tr>
                 <td>{{ $p->full_name }}</td>
                 <td>{{ $p->company ?: '—' }}</td>
-                <td>{{ $p->phone ?: '—' }}</td>
+                <td class="whitespace-nowrap text-stone-500" title="Dados protegidos. Use Editar para ver.">{{ \App\Support\Mask::contact($p->phone,$p->email) ?? '—' }}</td>
                 <td><span @class(['inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold',$p->pivot->status === 'present' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'])>{{ $p->pivot->status === 'present' ? 'Presente' : 'Pendente' }}</span></td>
                 <td class="text-right">
                   @if($signedRecords->isNotEmpty())
@@ -52,7 +53,7 @@
   </div>
 
   <aside class="space-y-6">
-    @can('manageParticipants',$event)<form method="post" action="{{ route('participants.store',$event) }}" class="rounded-3xl bg-white p-6">@csrf<h2 class="text-xl font-bold">Adicionar participante</h2><div class="mt-5 space-y-4"><label class="field">Nome completo<input name="full_name" required></label><label class="field">Telefone<input name="phone"></label><label class="field">E-mail<input name="email" type="email"></label><label class="field">Organização<input name="company"></label><label class="field">Sexo<select name="sex"><option value="">Seleccionar</option><option value="female">Feminino</option><option value="male">Masculino</option><option value="other">Outro</option></select></label><button class="btn-primary w-full">Adicionar</button></div></form>@endcan
+    @can('manageParticipants',$event)<form method="post" action="{{ route('participants.store',$event) }}" class="rounded-3xl bg-white p-6">@csrf<h2 class="text-xl font-bold">Adicionar participante</h2>@if($participantLimit)<p class="mt-1 text-sm text-stone-500">{{ max(0,$participantLimit-$event->participants_count) }} vagas restantes no pacote.</p>@endif<div class="mt-5 space-y-4"><label class="field">Nome completo<input name="full_name" required></label><label class="field">Telefone<input name="phone"></label><label class="field">E-mail<input name="email" type="email"></label><label class="field">Organização<input name="company"></label><label class="field">Sexo<select name="sex"><option value="">Seleccionar</option><option value="female">Feminino</option><option value="male">Masculino</option><option value="other">Outro</option></select></label><button class="btn-primary w-full">Adicionar</button></div></form>@endcan
     @can('managePayments',$event)<div class="rounded-3xl bg-stone-950 p-6 text-white"><h2 class="text-xl font-bold">Nova lista de pagamento</h2><p class="mt-2 text-sm leading-6 text-stone-400">Escolha quem esteve presente antes de gerar a lista. Todas começam como pendentes.</p><a class="btn-primary mt-5 block w-full text-center" href="{{ route('payments.lists.create',$event) }}">Marcar presenças e criar lista</a></div>@endcan
   </aside>
 </div>

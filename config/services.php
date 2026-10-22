@@ -28,6 +28,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Mobile wallet payments (M-Pesa style). The API receives token, amount and phone.
+    'mobile_payments' => [
+        'url' => env('PAYMENT_API_URL'),
+        'token' => env('PAYMENT_API_TOKEN'),
+        'timeout' => env('PAYMENT_API_TIMEOUT', 90),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

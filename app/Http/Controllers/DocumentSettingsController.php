@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ReportColumns;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -37,7 +38,15 @@ class DocumentSettingsController extends Controller
             'remove_secondary_logos' => 'nullable|array|max:3',
             'remove_secondary_logos.*' => 'integer|min:0|max:2|distinct',
             'remove_header_banner' => 'nullable|boolean',
+            'report_columns' => 'nullable|array',
+            'report_columns.*' => 'nullable|array',
+            'report_columns.*.*' => ['string', Rule::in(array_keys(ReportColumns::OPTIONS))],
+            'mask_sensitive_in_reports' => 'nullable|boolean',
         ]);
+        $data['report_columns'] = collect(ReportColumns::REPORTS)
+            ->mapWithKeys(fn ($label, $report) => [$report => array_values(array_unique($request->input("report_columns.$report", [])))])
+            ->all();
+        $data['mask_sensitive_in_reports'] = $request->boolean('mask_sensitive_in_reports');
 
         $settings = $organization->report_settings ?? [];
         $secondaryLogoPaths = array_values(array_filter(
@@ -96,7 +105,7 @@ class DocumentSettingsController extends Controller
         $organization->report_settings = array_merge($settings, $data);
         $organization->save();
 
-        return back()->with('success', 'Cabeçalho e responsáveis dos documentos actualizados.');
+        return back()->with('success', 'Configuração dos documentos e relatórios actualizada.');
     }
 
     public function logo()

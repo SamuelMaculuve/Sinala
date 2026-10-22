@@ -2,7 +2,7 @@
 @section('content')
 @php($settings=$organization->report_settings ?? [])
 @php($secondaryLogoPaths=array_values($settings['secondary_logo_paths'] ?? []))
-<div><p class="eyebrow">DOCUMENTOS</p><h1 class="mt-2 text-4xl font-bold">Cabeçalho e assinaturas</h1><p class="mt-2 max-w-3xl text-stone-500">Estas configurações são exclusivas da {{ $organization->name }} e serão aplicadas automaticamente às listas de presença e de recebimento.</p></div>
+<div><p class="eyebrow">DOCUMENTOS E RELATÓRIOS</p><h1 class="mt-2 text-4xl font-bold">Cabeçalho, dados e assinaturas</h1><p class="mt-2 max-w-3xl text-stone-500">Estas configurações são exclusivas da {{ $organization->name }} e serão aplicadas automaticamente às listas de presença e de recebimento.</p></div>
 <form method="post" enctype="multipart/form-data" action="{{ route('organization.documents.update') }}" class="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">@csrf @method('put')
   <section class="grid gap-5 rounded-3xl bg-white p-6 sm:grid-cols-2 lg:p-8">
     <label class="field sm:col-span-2">Título do cabeçalho<input name="header_title" value="{{ old('header_title',$settings['header_title'] ?? $organization->name) }}" placeholder="Nome da organização ou programa"></label>
@@ -31,6 +31,19 @@
     <label class="field sm:col-span-2">Faixa de logótipos do cabeçalho<input type="file" name="header_banner" accept="image/png,image/jpeg"><small class="mt-2 block font-normal text-stone-400">Use esta opção quando o documento deve apresentar vários parceiros ou financiadores no cabeçalho.</small></label>
     @if(!empty($settings['header_banner_path']))<p class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 sm:col-span-2">A faixa actual ocupa todo o cabeçalho e tem prioridade sobre os logótipos individuais. Remova-a para usar o novo formato com logótipos adicionais à esquerda e principal à direita.</p>@endif
     @if(!empty($settings['header_banner_path']))<label class="flex items-center gap-3 text-sm text-stone-600 sm:col-span-2"><input type="checkbox" name="remove_header_banner" value="1"> Remover a faixa de logótipos actual</label>@endif
+    <div id="report-columns" class="rounded-2xl border border-stone-200 p-5 sm:col-span-2">
+      <h2 class="font-bold text-stone-950">Dados apresentados nos relatórios PDF</h2>
+      <p class="mt-1 text-sm text-stone-500">Escolha que dados dos participantes aparecem em cada lista. O nome, as datas e as assinaturas aparecem sempre.</p>
+      <div class="mt-4 grid gap-5 lg:grid-cols-2">
+        @foreach(\App\Support\ReportColumns::REPORTS as $report=>$reportLabel)
+          @php($selectedColumns=old('report_columns.'.$report,array_keys(\App\Support\ReportColumns::for($settings,$report))))
+          <fieldset class="rounded-xl bg-stone-50 p-4"><legend class="text-sm font-bold">{{ $reportLabel }}</legend>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">@foreach(\App\Support\ReportColumns::OPTIONS as $key=>$label)<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="report_columns[{{ $report }}][]" value="{{ $key }}" @checked(in_array($key,$selectedColumns,true))> {{ $label }}</label>@endforeach</div>
+          </fieldset>
+        @endforeach
+      </div>
+      <label class="mt-4 flex items-start gap-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900"><input type="checkbox" name="mask_sensitive_in_reports" value="1" class="mt-1" @checked(old('mask_sensitive_in_reports',$settings['mask_sensitive_in_reports'] ?? false))><span><strong>Ocultar parcialmente dados sensíveis nos PDFs</strong><br>Contacto, e-mail, documento e data de nascimento aparecem parcialmente ocultos (ex.: 84•••••67).</span></label>
+    </div>
   </section>
   <aside class="space-y-6"><section class="rounded-3xl bg-white p-6"><h2 class="text-xl font-bold">Pré-visualização do cabeçalho</h2><div class="mt-5 rounded-2xl border bg-stone-50 p-5">@if(!empty($settings['header_banner_path']))<img src="{{ route('organization.documents.header') }}" alt="Logótipos do cabeçalho" class="w-full object-contain">@else<div class="grid grid-cols-[minmax(90px,1.4fr)_1.5fr_minmax(60px,1fr)] items-center gap-3"><div class="grid items-center gap-2" style="grid-template-columns:repeat({{ max(count($secondaryLogoPaths),1) }},minmax(0,1fr))">@foreach($secondaryLogoPaths as $index => $path)<img src="{{ route('organization.documents.secondary-logo',$index) }}" alt="Logótipo adicional {{ $index + 1 }}" class="max-h-10 max-w-full object-contain">@endforeach</div><div class="text-center"><strong class="block text-xs">{{ $settings['header_title'] ?? $organization->name }}</strong><small class="mt-1 block text-[10px] text-stone-500">{{ $settings['header_subtitle'] ?? 'Lista oficial da organização' }}</small></div>@if($organization->logo_path)<img src="{{ route('organization.documents.logo') }}" alt="Logótipo principal" class="max-h-12 max-w-full object-contain object-right">@else<x-brand-logo class="ml-auto h-9 max-w-full object-contain object-right" />@endif</div>@endif</div></section>
   <section class="rounded-3xl bg-white p-6"><h2 class="text-xl font-bold">Responsáveis que assinam</h2><p class="mt-2 text-sm text-stone-500">Seleccione no máximo duas contas.</p><div class="mt-4 space-y-3">@foreach($organization->users as $user)<label class="flex items-center gap-3 rounded-xl border p-4"><input type="checkbox" name="signatory_user_ids[]" value="{{ $user->id }}" @checked(in_array($user->id,old('signatory_user_ids',$settings['signatory_user_ids'] ?? [])))><span><strong class="block text-sm">{{ $user->name }}</strong><small class="text-stone-400">{{ $user->roles->pluck('name')->join(', ') }}</small></span></label>@endforeach</div></section></aside>

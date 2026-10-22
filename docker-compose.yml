@@ -1,0 +1,41 @@
+# Local testing environment: docker compose up --build
+services:
+  assets:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npm ci && npm run build"
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: /app/docker/start.sh
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/docker.sqlite
+      PHP_CLI_SERVER_WORKERS: 4
+    depends_on:
+      assets:
+        condition: service_completed_successfully
+
+  # Optional fake payment API. To use it, set in .env:
+  #   PAYMENT_API_URL=http://payment-mock:8080/charge
+  #   PAYMENT_API_TOKEN=test-token
+  payment-mock:
+    image: php:8.4-cli-alpine
+    working_dir: /mock
+    volumes:
+      - ./docker/payment-mock.php:/mock/index.php:ro
+    environment:
+      EXPECTED_TOKEN: test-token
+    command: php -S 0.0.0.0:8080 index.php

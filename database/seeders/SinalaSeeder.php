@@ -19,8 +19,8 @@ class SinalaSeeder extends Seeder
         foreach(['Super Administrador','Administrador da Organização','Gestor de Eventos','Operador','Visualizador/Auditor','Coordenador Geral','Coordenadora de campo'] as $role) Role::firstOrCreate(['name'=>$role,'guard_name'=>'web']);
         $plans=[
             ['name'=>'Free','slug'=>'free','price_mzn'=>0,'event_limit'=>10,'user_limit'=>3,'storage_mb'=>500,'monthly_event_limit'=>false,'features'=>['attendance','signatures','pdf','payments']],
-            ['name'=>'Profissional','slug'=>'professional','price_mzn'=>3500,'event_limit'=>20,'user_limit'=>5,'storage_mb'=>10240,'monthly_event_limit'=>true,'features'=>['attendance','signatures','pdf','excel','payments','check_out','multi_day','qr_code','imports','advanced_reports','priority_support']],
-            ['name'=>'Organização','slug'=>'organization','price_mzn'=>7500,'event_limit'=>100,'user_limit'=>20,'storage_mb'=>51200,'monthly_event_limit'=>true,'features'=>['attendance','signatures','pdf','excel','payments','check_out','multi_day','qr_code','imports','advanced_reports','projects','donors','audit','custom_documents','priority_support']],
+            ['name'=>'Profissional','slug'=>'professional','price_mzn'=>3500,'duration_days'=>30,'event_limit'=>20,'user_limit'=>5,'storage_mb'=>10240,'monthly_event_limit'=>true,'features'=>['attendance','signatures','pdf','excel','payments','check_out','multi_day','qr_code','imports','advanced_reports','priority_support']],
+            ['name'=>'Organização','slug'=>'organization','price_mzn'=>7500,'duration_days'=>30,'event_limit'=>100,'user_limit'=>20,'storage_mb'=>51200,'monthly_event_limit'=>true,'features'=>['attendance','signatures','pdf','excel','payments','check_out','multi_day','qr_code','imports','advanced_reports','projects','donors','audit','custom_documents','priority_support']],
         ];
         foreach($plans as $plan) Plan::firstOrCreate(['slug'=>$plan['slug']],$plan);
         $org=Organization::where('slug','cies')->first() ?? Organization::where('slug','fundacao-horizonte')->first();

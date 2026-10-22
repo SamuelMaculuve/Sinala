@@ -23,7 +23,7 @@ class EventController extends Controller {
      */
     public function create()
     {
-        abort_unless(app(SubscriptionService::class)->canCreateEvent(request()->user()->organization),403,'Atingiu o limite de eventos do seu plano.'); return view('events.create');
+        if(!app(SubscriptionService::class)->canCreateEvent(request()->user()->organization)) return $this->limitReached(); return view('events.create');
     }
 
     /**
@@ -31,7 +31,7 @@ class EventController extends Controller {
      */
     public function store(Request $request)
     {
-        $org=$request->user()->organization; abort_unless(app(SubscriptionService::class)->canCreateEvent($org),403,'Atingiu o limite de eventos do seu plano.'); $data=$request->validate(['name'=>'required|max:180','type'=>'required|in:training,workshop,seminar,conference,meeting,community,capacity,other','location'=>'required|max:180','province'=>'nullable|max:100','district'=>'nullable|max:100','starts_on'=>'required|date','ends_on'=>'required|date|after_or_equal:starts_on','starts_at'=>'nullable','ends_at'=>'nullable','facilitator'=>'nullable|max:150','responsible_name'=>'nullable|max:150','contact'=>'nullable|max:50','expected_participants'=>'nullable|integer|min:0','description'=>'nullable|max:3000','notes'=>'nullable|max:3000','requires_check_out'=>'nullable|boolean']); $event=DB::transaction(function()use($org,$data){$event=$org->events()->create($data+['uuid'=>Str::uuid(),'public_code'=>Str::upper(Str::random(10)),'status'=>'scheduled']); foreach(CarbonPeriod::create($data['starts_on'],$data['ends_on']) as $date)$event->days()->create(['date'=>$date]); return $event;}); return redirect()->route('events.show',$event)->with('success','Evento criado com sucesso.');
+        $org=$request->user()->organization; if(!app(SubscriptionService::class)->canCreateEvent($org)) return $this->limitReached(); $data=$request->validate(['name'=>'required|max:180','type'=>'required|in:training,workshop,seminar,conference,meeting,community,capacity,other','location'=>'required|max:180','province'=>'nullable|max:100','district'=>'nullable|max:100','starts_on'=>'required|date','ends_on'=>'required|date|after_or_equal:starts_on','starts_at'=>'nullable','ends_at'=>'nullable','facilitator'=>'nullable|max:150','responsible_name'=>'nullable|max:150','contact'=>'nullable|max:50','expected_participants'=>'nullable|integer|min:0','description'=>'nullable|max:3000','notes'=>'nullable|max:3000','requires_check_out'=>'nullable|boolean']); $event=DB::transaction(function()use($org,$data){$event=$org->events()->create($data+['uuid'=>Str::uuid(),'public_code'=>Str::upper(Str::random(10)),'status'=>'scheduled']); foreach(CarbonPeriod::create($data['starts_on'],$data['ends_on']) as $date)$event->days()->create(['date'=>$date]); return $event;}); return redirect()->route('events.show',$event)->with('success','Evento criado com sucesso.');
     }
 
     /**
@@ -41,6 +41,7 @@ class EventController extends Controller {
     {
         $this->authorize('view',$event);
         $event->load(['days','paymentLists.payments'])->loadCount('participants');
+        $participantLimit=app(SubscriptionService::class)->participantLimit($event->organization);
         $participants=$event->participants()->orderBy('full_name')->paginate(20,['participants.*'],'participants_page')->withQueryString();
         $participantAttendances = $event->attendanceRecords()
             ->whereIn('participant_id', $participants->getCollection()->pluck('id'))
@@ -52,7 +53,7 @@ class EventController extends Controller {
             ->wherePivot('status', 'pending')
             ->whereIn('participants.id', $event->attendanceRecords()->select('participant_id')->distinct())
             ->count();
-        return view('events.show',compact('event','participants','participantAttendances','syncCandidatesCount'));
+        return view('events.show',compact('event','participants','participantAttendances','syncCandidatesCount','participantLimit'));
     }
 
     public function syncAttendanceStatuses(Event $event)
@@ -110,5 +111,13 @@ class EventController extends Controller {
     public function close(Request $request, Event $event)
     {
         $this->authorize('close',$event); $event->update(['closed_at'=>now(),'closed_by'=>$request->user()->id]); return redirect()->route('events.show',$event)->with('success','Evento fechado. Já não é possível alterar dados.');
+    }
+
+    private function limitReached()
+    {
+        $usage=app(SubscriptionService::class)->usage(request()->user()->organization);
+        $message=!$usage['active'] ? 'A sua subscrição não está activa. Renove o pacote para criar eventos.' : 'Atingiu o limite de '.$usage['limit'].' eventos do seu pacote.';
+
+        return redirect()->route('organization.billing')->withErrors(['subscription'=>$message]);
     }
 }
